@@ -51,12 +51,10 @@ export const register = async (req, res) => {
 
     // CONTROLLO 3: Imponiamo una lunghezza minima e massima della password per sicurezza
     if (password.length < 8 || password.length > 72) {
-      return res
-        .status(400)
-        .json({
-          error: true,
-          message: "La password deve essere tra gli 8 e i 72 caratteri",
-        });
+      return res.status(400).json({
+        error: true,
+        message: "La password deve essere tra gli 8 e i 72 caratteri",
+      });
     }
 
     // SANITIZZAZIONE: Rimuoviamo spazi vuoti accidentali e convertiamo l'email in minuscolo
@@ -84,6 +82,7 @@ export const register = async (req, res) => {
         email: cleanEmail,
         username: cleanUsername,
         password: hashedPassword,
+        role: "USER", // <--- AGGIUNGI QUESTA RIGA (Hardcoded)
       },
     });
 
@@ -102,12 +101,10 @@ export const register = async (req, res) => {
     // Gestione errori di sistema: stampiamo l'errore reale solo sul terminale del server per fare debug
     console.error("[Register Error]:", error);
     // Al client esterno restituiamo un messaggio generico per non esporre dettagli del database
-    return res
-      .status(500)
-      .json({
-        error: true,
-        message: "Errore interno durante la registrazione",
-      });
+    return res.status(500).json({
+      error: true,
+      message: "Errore interno durante la registrazione",
+    });
   }
 };
 
