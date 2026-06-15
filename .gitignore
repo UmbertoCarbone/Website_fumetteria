@@ -1,0 +1,33 @@
+# ==========================================
+# CONFIGURAZIONE BACKEND
+# ==========================================
+# Dipendenze Node
+backend/node_modules/
+
+# Variabili d'ambiente segrete (Password del DB)
+backend/.env
+backend/.env.local
+
+# Log di errore
+backend/*.log
+backend/npm-debug.log*
+
+
+# ==========================================
+# CONFIGURAZIONE FRONTEND
+# ==========================================
+# Dipendenze Node
+frontend/node_modules/
+
+# Cartella di build (generata da Vite quando pubblichi il sito)
+frontend/dist/
+
+# Variabili d'ambiente locali del frontend
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.production.local
+
+# File di sistema e IDE
+.DS_Store
+.vscode/
