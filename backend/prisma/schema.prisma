@@ -30,6 +30,7 @@ model Comic {
 }
 
 enum Role {
+  SUPERADMIN
+  STAFF
   USER
-  ADMIN
 }
