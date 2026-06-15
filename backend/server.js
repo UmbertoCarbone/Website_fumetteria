@@ -1,27 +1,22 @@
 import "dotenv/config";
 import express from "express";
-import cors from "cors"; // Assicurati di averlo installato: npm install cors
+import cors from "cors";
 import prisma from "./db/connection.js";
-import authRoutes from "./routes/auth.js"; // Importiamo le tue nuove rotte di auth
+import userRoutes from "./routes/userRoutes.js";
+import authRoutes from "./routes/auth.js";
 
 const app = express();
 const PORT = process.env.PORT || 5121;
 
-// 1. Middleware CORS: essenziale per far parlare frontend e backend
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  }),
-);
-
-// 2. Middleware per leggere il body JSON
+// Middleware
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 
-// 3. Rotte di Autenticazione (register/login)
+// Rotte
 app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes); // Qui le rotte di userRoutes vengono caricate correttamente
 
-// 4. Rotta di test (la tua rotta originale)
+// Rotta di test
 app.get("/", async (req, res) => {
   try {
     res.json({
@@ -36,7 +31,6 @@ app.get("/", async (req, res) => {
   }
 });
 
-// 5. Avvio del server
 app.listen(PORT, () => {
   console.info(`🚀 Server running on port ${PORT}`);
 });
