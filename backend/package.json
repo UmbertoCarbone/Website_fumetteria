@@ -2,10 +2,11 @@
   "name": "website_fumetteria_backend",
   "version": "1.0.0",
   "type": "module",
-  "main": "server.js",
+  "main": "dist/server.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
     "db:seed": "node prisma/seed.js"
   },
   "prisma": {
@@ -17,10 +18,18 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.9.3",
     "nodemon": "^3.1.4",
-    "prisma": "^5.15.0"
+    "prisma": "^5.15.0",
+    "tsx": "^4.19.3",
+    "typescript": "^6.0.3"
   }
 }

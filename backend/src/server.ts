@@ -1,5 +1,5 @@
 import "dotenv/config";
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import prisma from "./db/connection.js";
 import userRoutes from "./routes/userRoutes.js";
@@ -14,20 +14,23 @@ app.use(express.json());
 
 // Rotte
 app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes); // Qui le rotte di userRoutes vengono caricate correttamente
+app.use("/api/users", userRoutes);
 
 // Rotta di test
-app.get("/", async (req, res) => {
+app.get("/", async (req: Request, res: Response) => {
   try {
+    const comics = await prisma.comic.findMany();
     res.json({
       status: "success",
       message: "Connessione OK!",
-      data: await prisma.comic.findMany(),
+      data: comics,
     });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ status: "error", message: "Errore DB", details: err.message });
+  } catch (err: any) {
+    res.status(500).json({ 
+      status: "error", 
+      message: "Errore DB", 
+      details: err instanceof Error ? err.message : "Errore sconosciuto" 
+    });
   }
 });
 

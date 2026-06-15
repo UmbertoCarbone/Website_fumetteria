@@ -24,11 +24,11 @@ export default function Login({
 
       // CORREZIONE: il ruolo è dentro data.user.role
       onLogin(data.user.role);
-
+      console.log("login effettuato con successo");
       // (Opzionale) Salva il token per le chiamate future
       localStorage.setItem("token", data.token);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
     }
   };
 
