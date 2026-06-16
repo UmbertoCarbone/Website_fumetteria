@@ -2,10 +2,14 @@ import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
 import prisma from "./db/connection.js";
+
+//import Rotte
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/auth.js";
-
+//
 import cardRoutes from "./routes/cardRoutes.js";
+//prodotti DB
+import productRoutes from "./routes/productRoutes.js";
 
 const app = express();
 const PORT = process.env.PORT || 5121;
@@ -16,31 +20,29 @@ app.use(express.json());
 
 // Rotte
 app.use("/api/auth", authRoutes);
+//db user
 app.use("/api/users", userRoutes);
+//import da apikey per carte
 app.use("/api/cards", cardRoutes);
+//prodotti nel DB
+app.use("/api/products", productRoutes);
 
-// Rotta di test
+//query per testare il Backend acceso
 app.get("/", async (req: Request, res: Response) => {
   try {
-    // Ora usiamo il modello unificato Product
-    const products = await prisma.product.findMany({
-      include: {
-        category: true, // Ci mostra la categoria (es. Giochi)
-        subCategory: true, // Ci mostra la sotto-categoria (es. Carte Pokémon)
-      },
+    
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.status(200).json({
+      status: "online",
+      message: "Database connesso e attivo",
+      timestamp: new Date().toISOString()
     });
-
-    res.json({
-      status: "success",
-      message: "Connessione al Database OK!",
-      totalProducts: products.length,
-      data: products,
-    });
-  } catch (err: any) {
+  } catch (error) {
     res.status(500).json({
-      status: "error",
-      message: "Errore DB durante il recupero dei prodotti",
-      details: err instanceof Error ? err.message : "Errore sconosciuto",
+      status: "offline",
+      message: "Database spento o non raggiungibile",
+      error: error instanceof Error ? error.message : "Errore sconosciuto"
     });
   }
 });

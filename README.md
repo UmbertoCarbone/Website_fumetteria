@@ -1,30 +1,45 @@
+<div align="center">
+
 # 📚 E-Commerce Fumetteria
 
-Progetto full-stack professionale per la gestione e la vendita di fumetti, caratterizzato da un'architettura robusta, tipata e con validazione dei dati in tempo reale.
+_Gestione professionale di fumetti, carte collezionabili e gadget_
+
+[![Project Status: Active](https://img.shields.io/badge/Status-Active-brightgreen.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)]()
+[![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=white)]()
+[![NodeJS](https://img.shields.io/badge/Node.js-339933?style=flat&logo=nodedotjs&logoColor=white)]()
+
+---
+
+</div>
+
+## 📖 Descrizione
+
+Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione integrata di un catalogo prodotti, sincronizzazione automatizzata con API esterne e un'esperienza utente moderna basata su architettura atomica.
 
 ---
 
 ## 🛠️ Stack Tecnologico
 
-### 💻 Frontend
-- **Framework & Build Tool:** React.js + Vite
-- **Styling:** Tailwind CSS
-- **Architettura:** Struttura Atomica per componenti riutilizzabili e indipendenti
+| Frontend          | Backend           | Database       |
+| :---------------- | :---------------- | :------------- |
+| **React + Vite**  | **Node.js (ESM)** | **PostgreSQL** |
+| **Tailwind CSS**  | **TypeScript**    | **Prisma ORM** |
+| **Atomic Design** | **Zod / JWT**     | **Docker**     |
 
-### ⚙️ Backend
-- **Runtime & Lingua:** Node.js (ES Modules - `"type": "module"`) + **TypeScript**
-- **Framework:** Express.js
-- **Compilatore & Watcher:** **TSX** (TypeScript Execute) per uno sviluppo fulmineo
-- **Validazione Dati:** **Zod** (Schema Validation preventiva)
-- **Sicurezza:** Criptazione password con Bcrypt e gestione accessi tramite JSON Web Tokens (JWT)
+---
 
-### 🗄️ Database & ORM
-- **Database:** PostgreSQL gestito in ambiente isolato tramite **Docker**
-- **ORM:** Prisma v7 con supporto nativo TypeScript
+## 🛣️ API Endpoints
+
+| Metodo | Endpoint             | Descrizione                     |
+| :----- | :------------------- | :------------------------------ |
+| `GET`  | `/`                  | Health Check (Stato Database)   |
+| `POST` | `/api/auth/register` | Registrazione Utente            |
+| `POST` | `/api/auth/login`    | Login & JWT Generation          |
+| `GET`  | `/api/users`         | Recupero lista utenti           |
+| `POST` | `/api/cards/sync`    | Sincronizzazione Catalogo (API) |
+| `GET`  | `/api/products`      | Query Catalogo (con Relazioni)  |
 
 ---
 
 
-## Terminale
-npx prisma studio
-npm run dev

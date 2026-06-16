@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { syncTcgProducts } from "../controllers/CardController.js";
+import { syncTcgProducts } from "../controllers/cardController.js";
 
 const router = Router();
 
