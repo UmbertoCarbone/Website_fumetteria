@@ -60,25 +60,23 @@ model Publisher {
 // 4. TABELLA CENTRALE DEI PRODOTTI (Valida per qualsiasi articolo)
 model Product {
   id            String      @id @default(uuid())
+  externalId    String?     @unique // <--- AGGIUNGI QUESTO CAMPO
   title         String
   description   String?
   price         Float
   stock         Int         @default(0)
   imageUrl      String?
-  isPreorder    Boolean     @default(false) // Gestisce la sezione "Preordini" del menu
+  isPreorder    Boolean     @default(false)
   
-  // Relazioni esterne obbligatorie
   categoryId    String
   category      Category    @relation(fields: [categoryId], references: [id])
   
   subCategoryId String
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
   
-  // Relazione esterna opzionale (es. un bustina protettiva generica potrebbe non avere un editore)
   publisherId   String?
   publisher     Publisher?  @relation(fields: [publisherId], references: [id])
 
-  // Campi specifici opzionali (Popolati solo se l'articolo è un fumetto/libro)
   volumeNumber  Int?        
   pages         Int?        
 
