@@ -18,19 +18,70 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
-model Comic {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  price       Float
-  stock       Int      @default(0)
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 enum Role {
   SUPERADMIN
   STAFF
   USER
+}
+
+// ==========================================
+// 🛍️ NUOVA STRUTTURA CATALOGO E-COMMERCE
+// ==========================================
+
+// 1. MENU PRINCIPALE (es. FUMETTI, GADGET, GIOCHI, ACCESSORI)
+model Category {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  subcategories SubCategory[]
+  products      Product[]
+  createdAt     DateTime      @default(now())
+}
+
+// 2. SOTTO-CATEGORIE (es. Manga, Funko POP, Giochi di Ruolo, Action Figures)
+model SubCategory {
+  id         String   @id @default(uuid())
+  name       String
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products   Product[]
+  createdAt  DateTime @default(now())
+
+  @@unique([name, categoryId]) // Evita duplicati identici nella stessa macro-categoria
+}
+
+// 3. EDITORI / BRAND (es. Panini Comics, Star Comics, Funko, Asmodee)
+model Publisher {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+// 4. TABELLA CENTRALE DEI PRODOTTI (Valida per qualsiasi articolo)
+model Product {
+  id            String      @id @default(uuid())
+  title         String
+  description   String?
+  price         Float
+  stock         Int         @default(0)
+  imageUrl      String?
+  isPreorder    Boolean     @default(false) // Gestisce la sezione "Preordini" del menu
+  
+  // Relazioni esterne obbligatorie
+  categoryId    String
+  category      Category    @relation(fields: [categoryId], references: [id])
+  
+  subCategoryId String
+  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
+  
+  // Relazione esterna opzionale (es. un bustina protettiva generica potrebbe non avere un editore)
+  publisherId   String?
+  publisher     Publisher?  @relation(fields: [publisherId], references: [id])
+
+  // Campi specifici opzionali (Popolati solo se l'articolo è un fumetto/libro)
+  volumeNumber  Int?        
+  pages         Int?        
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
