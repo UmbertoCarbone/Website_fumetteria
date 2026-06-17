@@ -4,6 +4,7 @@ import {
   syncPokemon,
   syncPokemonJp,
   syncYugioh,
+  syncOnePiece,
 } from "../controllers/cardController.js";
 
 const router = Router();
@@ -12,5 +13,6 @@ const router = Router();
 router.post("/sync/pokemon", syncPokemon);
 router.post("/sync/pokemon-jp", syncPokemonJp);
 router.post("/sync/yugioh", syncYugioh);
+router.post("/sync/OnePiece", syncOnePiece);
 
 export default router;

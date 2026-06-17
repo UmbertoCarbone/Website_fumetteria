@@ -1,20 +1,28 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 
-// Funzione Helper interna (non esportata)
+// Mappatura per associare il nome della sottocategoria al parametro "game" richiesto dall'API
+const gameMapping: Record<string, string> = {
+  Pokemon: "pokemon",
+  PokemonJP: "pokemon",
+  "One Piece": "onepiece",
+  YuGiOh: "yugioh",
+};
+
+// Funzione Helper interna per salvare nel database
 const saveProductWithCategory = async (
   card: any,
   catName: string,
   subCatName: string,
 ) => {
-  // 1. Trova/Crea Macro-Categoria (es. "Carte")
+  // 1. Trova/Crea Macro-Categoria
   const category = await prisma.category.upsert({
     where: { name: catName },
     update: {},
     create: { name: catName },
   });
 
-  // 2. Trova/Crea Sotto-Categoria (es. "Pokemon", "PokemonJP")
+  // 2. Trova/Crea Sotto-Categoria
   const subCategory = await prisma.subCategory.upsert({
     where: { name_categoryId: { name: subCatName, categoryId: category.id } },
     update: {},
@@ -47,7 +55,7 @@ const saveProductWithCategory = async (
   });
 };
 
-// --- LE TUE ROTTE SPECIFICHE ---
+// --- ROTTE ESPORTATE ---
 
 export const syncPokemon = async (req: Request, res: Response) => {
   await performSync(req, res, "Carte", "Pokemon");
@@ -55,6 +63,10 @@ export const syncPokemon = async (req: Request, res: Response) => {
 
 export const syncPokemonJp = async (req: Request, res: Response) => {
   await performSync(req, res, "Carte", "PokemonJP");
+};
+
+export const syncOnePiece = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "One Piece");
 };
 
 export const syncYugioh = async (req: Request, res: Response) => {
@@ -72,9 +84,12 @@ const performSync = async (
     const { q, set, limit } = req.query;
     const apiKey = process.env.CARD_API_KEY;
 
+    // Utilizzo della mappa per determinare il gioco
+    const gameValue = gameMapping[sub] || "yugioh";
+
     const params = new URLSearchParams({
-      q: (q as string) || "charizard",
-      game: sub === "Pokemon" || sub === "PokemonJP" ? "pokemon" : "yugioh", // Esempio logica
+      q: (q as string) || "luffy", // Default dinamico o generico
+      game: gameValue,
       ...(set && { set: set as string }),
       ...(limit && { limit: limit as string }),
     });
@@ -87,10 +102,18 @@ const performSync = async (
     );
 
     const data = await apiResponse.json();
+
+    if (!data.data) {
+      throw new Error(data.message || "Errore nel recupero dati dall'API");
+    }
+
     for (const card of data.data) {
       await saveProductWithCategory(card, cat, sub);
     }
-    res.status(200).json({ message: `Salvato in ${cat} -> ${sub}` });
+
+    res
+      .status(200)
+      .json({ message: `Sincronizzazione completata per ${sub} in ${cat}` });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
