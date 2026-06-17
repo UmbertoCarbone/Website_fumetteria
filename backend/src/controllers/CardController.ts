@@ -1,23 +1,33 @@
-// backend/controllers/cardController.ts
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 
-const upsertProduct = async (
+// Funzione Helper interna (non esportata)
+const saveProductWithCategory = async (
   card: any,
-  categoryId: string,
-  subCategoryId: string,
+  catName: string,
+  subCatName: string,
 ) => {
-  const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
+  // 1. Trova/Crea Macro-Categoria (es. "Carte")
+  const category = await prisma.category.upsert({
+    where: { name: catName },
+    update: {},
+    create: { name: catName },
+  });
 
-  // Il titolo ora è pulito, il dettaglio è nelle colonne dedicate
+  // 2. Trova/Crea Sotto-Categoria (es. "Pokemon", "PokemonJP")
+  const subCategory = await prisma.subCategory.upsert({
+    where: { name_categoryId: { name: subCatName, categoryId: category.id } },
+    update: {},
+    create: { name: subCatName, categoryId: category.id },
+  });
+
+  // 3. Esegui l'upsert del prodotto
+  const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
   const title = `${card.name} (${card.number})`;
 
   return await prisma.product.upsert({
     where: { externalId: card.id },
-    update: {
-      price: Number(marketPrice),
-      stock: 10,
-    },
+    update: { price: Number(marketPrice), stock: 10 },
     create: {
       externalId: card.id,
       tcgplayerId: String(card.tcgplayer_id || ""),
@@ -30,72 +40,58 @@ const upsertProduct = async (
       price: Number(marketPrice),
       stock: 10,
       imageUrl: card.image_url,
-      categoryId: categoryId,
-      subCategoryId: subCategoryId,
+      categoryId: category.id,
+      subCategoryId: subCategory.id,
       isPreorder: false,
     },
   });
 };
 
-export const syncTcgProducts = async (req: Request, res: Response) => {
-  const { q, game, set, rarity, limit, offset } = req.query;
+// --- LE TUE ROTTE SPECIFICHE ---
 
+export const syncPokemon = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "Pokemon");
+};
+
+export const syncPokemonJp = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "PokemonJP");
+};
+
+export const syncYugioh = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "YuGiOh");
+};
+
+// Funzione comune per chiamare l'API
+const performSync = async (
+  req: Request,
+  res: Response,
+  cat: string,
+  sub: string,
+) => {
   try {
+    const { q, set, limit } = req.query;
     const apiKey = process.env.CARD_API_KEY;
-    if (!apiKey)
-      return res.status(401).json({ error: true, message: "API Key mancante" });
 
-    const baseUrl = "https://api.tcgpricelookup.com/v1/cards/search";
     const params = new URLSearchParams({
       q: (q as string) || "charizard",
-      game: (game as string) || "pokemon",
+      game: sub === "Pokemon" || sub === "PokemonJP" ? "pokemon" : "yugioh", // Esempio logica
       ...(set && { set: set as string }),
-      ...(rarity && { rarity: rarity as string }),
       ...(limit && { limit: limit as string }),
-      ...(offset && { offset: offset as string }),
     });
 
-    const apiResponse = await fetch(`${baseUrl}?${params.toString()}`, {
-      method: "GET",
-      headers: {
-        "X-API-Key": apiKey,
-        Accept: "application/json",
+    const apiResponse = await fetch(
+      `https://api.tcgpricelookup.com/v1/cards/search?${params.toString()}`,
+      {
+        headers: { "X-API-Key": apiKey!, Accept: "application/json" },
       },
-    });
+    );
 
-    if (!apiResponse.ok) {
-      throw new Error(`Errore API: ${apiResponse.status}`);
+    const data = await apiResponse.json();
+    for (const card of data.data) {
+      await saveProductWithCategory(card, cat, sub);
     }
-
-    const responseData = await apiResponse.json();
-    const cards = responseData.data || [];
-
-    if (cards.length === 0)
-      return res.status(404).json({ message: "Nessuna carta trovata." });
-
-    // Setup categorie (resta invariato)
-    const category = await prisma.category.upsert({
-      where: { name: "Giochi" },
-      update: {},
-      create: { name: "Giochi" },
-    });
-    const subCategory = await prisma.subCategory.upsert({
-      where: {
-        name_categoryId: { name: "Carte TCG", categoryId: category.id },
-      },
-      update: {},
-      create: { name: "Carte TCG", categoryId: category.id },
-    });
-
-    // Loop di salvataggio
-    for (const card of cards) {
-      await upsertProduct(card, category.id, subCategory.id);
-    }
-
-    res.status(200).json({
-      message: `Sincronizzazione completata: ${cards.length} carte salvate correttamente.`,
-    });
+    res.status(200).json({ message: `Salvato in ${cat} -> ${sub}` });
   } catch (error: any) {
-    res.status(500).json({ error: true, message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };

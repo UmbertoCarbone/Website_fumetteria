@@ -24,23 +24,19 @@ enum Role {
   USER
 }
 
-// ==========================================
-// 🛍️ NUOVA STRUTTURA CATALOGO E-COMMERCE
-// ==========================================
-
-// 1. MENU PRINCIPALE (es. FUMETTI, GADGET, GIOCHI, ACCESSORI)
+// 1. MACRO-CATEGORIA (es: Carte, Manga, Peluche, Gadget)
 model Category {
   id            String        @id @default(uuid())
-  name          String        @unique
+  name          String        @unique 
   subcategories SubCategory[]
   products      Product[]
   createdAt     DateTime      @default(now())
 }
 
-// 2. SOTTO-CATEGORIE (es. Manga, Funko POP, Giochi di Ruolo, Action Figures)
+// 2. SOTTO-CATEGORIA / FRANCHISE (es: Pokemon, Yu-Gi-Oh, Dragon Ball, Chainsaw Man)
 model SubCategory {
   id         String   @id @default(uuid())
-  name       String
+  name       String   
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   products   Product[]
@@ -57,7 +53,7 @@ model Publisher {
   createdAt DateTime  @default(now())
 }
 
-// 4. TABELLA CENTRALE DEI PRODOTTI (Valida per qualsiasi articolo)
+// 4. TABELLA PRODOTTI
 model Product {
   id            String      @id @default(uuid())
   externalId    String?     @unique
@@ -76,6 +72,7 @@ model Product {
   imageUrl      String?
   isPreorder    Boolean     @default(false)
   
+  // Relazioni
   categoryId    String
   category      Category    @relation(fields: [categoryId], references: [id])
   
@@ -85,6 +82,7 @@ model Product {
   publisherId   String?
   publisher     Publisher?  @relation(fields: [publisherId], references: [id])
 
+  // Campi extra
   volumeNumber  Int?        
   pages         Int?        
 
