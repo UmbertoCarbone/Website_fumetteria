@@ -46,7 +46,7 @@ model SubCategory {
   products   Product[]
   createdAt  DateTime @default(now())
 
-  @@unique([name, categoryId]) // Evita duplicati identici nella stessa macro-categoria
+  @@unique([name, categoryId]) 
 }
 
 // 3. EDITORI / BRAND (es. Panini Comics, Star Comics, Funko, Asmodee)
@@ -60,7 +60,15 @@ model Publisher {
 // 4. TABELLA CENTRALE DEI PRODOTTI (Valida per qualsiasi articolo)
 model Product {
   id            String      @id @default(uuid())
-  externalId    String?     @unique // <--- AGGIUNGI QUESTO CAMPO
+  externalId    String?     @unique
+  
+  // Campi specifici TCG
+  tcgplayerId   String?
+  name          String
+  number        String?
+  rarity        String?
+  variant       String?
+  
   title         String
   description   String?
   price         Float

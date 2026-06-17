@@ -1,28 +1,38 @@
-// config/cardController.ts
+// backend/controllers/cardController.ts
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 
-// Funzione upsert per evitare duplicati
 const upsertProduct = async (
   card: any,
   categoryId: string,
   subCategoryId: string,
 ) => {
-  const uniqueId = String(card.id); // Assicuriamoci che sia stringa
-  const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 4.99;
+  const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
+
+  // Il titolo ora è pulito, il dettaglio è nelle colonne dedicate
+  const title = `${card.name} (${card.number})`;
 
   return await prisma.product.upsert({
-    where: { externalId: uniqueId },
-    update: { price: Number(marketPrice) },
+    where: { externalId: card.id },
+    update: {
+      price: Number(marketPrice),
+      stock: 10,
+    },
     create: {
-      externalId: uniqueId,
-      title: card.name || "Carta TCG",
+      externalId: card.id,
+      tcgplayerId: String(card.tcgplayer_id || ""),
+      name: card.name,
+      number: card.number,
+      rarity: card.rarity,
+      variant: card.variant,
+      title: title,
       description: `Set: ${card.set?.name || "Generico"} - Rarità: ${card.rarity || "N/D"}`,
       price: Number(marketPrice),
       stock: 10,
       imageUrl: card.image_url,
-      categoryId,
-      subCategoryId,
+      categoryId: categoryId,
+      subCategoryId: subCategoryId,
+      isPreorder: false,
     },
   });
 };
@@ -35,7 +45,6 @@ export const syncTcgProducts = async (req: Request, res: Response) => {
     if (!apiKey)
       return res.status(401).json({ error: true, message: "API Key mancante" });
 
-    // URL CORRETTO come nella versione che funzionava
     const baseUrl = "https://api.tcgpricelookup.com/v1/cards/search";
     const params = new URLSearchParams({
       q: (q as string) || "charizard",
@@ -55,9 +64,7 @@ export const syncTcgProducts = async (req: Request, res: Response) => {
     });
 
     if (!apiResponse.ok) {
-      throw new Error(
-        `Errore API: ${apiResponse.status} - ${await apiResponse.text()}`,
-      );
+      throw new Error(`Errore API: ${apiResponse.status}`);
     }
 
     const responseData = await apiResponse.json();
@@ -66,7 +73,7 @@ export const syncTcgProducts = async (req: Request, res: Response) => {
     if (cards.length === 0)
       return res.status(404).json({ message: "Nessuna carta trovata." });
 
-    // Setup categorie
+    // Setup categorie (resta invariato)
     const category = await prisma.category.upsert({
       where: { name: "Giochi" },
       update: {},
@@ -80,13 +87,14 @@ export const syncTcgProducts = async (req: Request, res: Response) => {
       create: { name: "Carte TCG", categoryId: category.id },
     });
 
+    // Loop di salvataggio
     for (const card of cards) {
       await upsertProduct(card, category.id, subCategory.id);
     }
 
-    res
-      .status(200)
-      .json({ message: `Sincronizzazione completata: ${cards.length} carte.` });
+    res.status(200).json({
+      message: `Sincronizzazione completata: ${cards.length} carte salvate correttamente.`,
+    });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
   }
