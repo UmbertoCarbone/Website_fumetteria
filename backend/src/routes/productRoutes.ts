@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { getAllProducts } from "../controllers/productController.js";
+import { getProducts,createProduct } from "../controllers/productController.js";
 
 const router = Router();
 
-// Questa rotta risponderà a GET /api/products
-router.get("/", getAllProducts);
+router.get("/", getProducts);
+router.post("/", createProduct);
 
 export default router;

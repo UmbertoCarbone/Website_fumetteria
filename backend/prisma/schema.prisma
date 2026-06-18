@@ -8,84 +8,28 @@ generator client {
   binaryTargets = ["native"]
 }
 
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  username  String   @unique
-  password  String
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-enum Role {
-  SUPERADMIN
-  STAFF
-  USER
-}
-
-// 1. MACRO-CATEGORIA (es: Carte, Manga, Peluche, Gadget)
 model Category {
-  id            String        @id @default(uuid())
-  name          String        @unique 
-  subcategories SubCategory[]
-  products      Product[]
-  createdAt     DateTime      @default(now())
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  subCategories SubCategory[]
 }
 
-// 2. SOTTO-CATEGORIA / FRANCHISE (es: Pokemon, Yu-Gi-Oh, Dragon Ball, Chainsaw Man)
 model SubCategory {
-  id         String   @id @default(uuid())
-  name       String   
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  id         Int       @id @default(autoincrement())
+  name       String
+  categoryId Int
+  category   Category  @relation(fields: [categoryId], references: [id])
   products   Product[]
-  createdAt  DateTime @default(now())
-
-  @@unique([name, categoryId]) 
 }
 
-// 3. EDITORI / BRAND (es. Panini Comics, Star Comics, Funko, Asmodee)
-model Publisher {
-  id        String    @id @default(uuid())
-  name      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
-}
-
-// 4. TABELLA PRODOTTI
 model Product {
-  id            String      @id @default(uuid())
-  externalId    String?     @unique
-  
-  // Campi specifici TCG
-  tcgplayerId   String?
+  id            Int         @id @default(autoincrement())
   name          String
-  number        String?
-  rarity        String?
-  variant       String?
-  
-  title         String
-  description   String?
-  price         Float
-  stock         Int         @default(0)
+  price         Decimal     @db.Decimal(10, 2)
   imageUrl      String?
-  isPreorder    Boolean     @default(false)
-  
-  // Relazioni
-  categoryId    String
-  category      Category    @relation(fields: [categoryId], references: [id])
-  
-  subCategoryId String
+  // Qui salverai lo slug, es: "one-piece-111"
+  externalId    String?     @unique
+  subCategoryId Int
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
-  
-  publisherId   String?
-  publisher     Publisher?  @relation(fields: [publisherId], references: [id])
-
-  // Campi extra
-  volumeNumber  Int?        
-  pages         Int?        
-
   createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
 }

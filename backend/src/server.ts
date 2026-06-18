@@ -27,6 +27,8 @@ app.use("/api/cards", cardRoutes);
 //prodotti nel DB
 app.use("/api/products", productRoutes);
 
+
+
 //query per testare il Backend acceso
 app.get("/", async (req: Request, res: Response) => {
   try {
