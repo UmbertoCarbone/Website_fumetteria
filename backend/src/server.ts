@@ -3,13 +3,16 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import prisma from "./db/connection.js";
 
-//import Rotte
+//rotta per gli User + Auth
 import userRoutes from "./routes/userRoutes.js";
 import authRoutes from "./routes/auth.js";
-//
-import cardRoutes from "./routes/cardRoutes.js";
-//prodotti DB
+
+//prodotti 
 import productRoutes from "./routes/productRoutes.js";
+
+//fetch + POST per importare carte nel DB principale
+import cardRoutes from "./routes/cardRoutes.js";
+
 
 const app = express();
 const PORT = process.env.PORT || 5121;
@@ -22,10 +25,10 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 //db user
 app.use("/api/users", userRoutes);
-//import da apikey per carte
-app.use("/api/cards", cardRoutes);
 //prodotti nel DB
 app.use("/api/products", productRoutes);
+//import da apikey per carte
+app.use("/api/cards", cardRoutes);
 
 
 

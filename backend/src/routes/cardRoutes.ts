@@ -9,7 +9,7 @@ import {
 
 const router = Router();
 
-// Ora hai rotte specifiche per ogni tipo di importazione
+//rotte specifiche per ogni tipo di importazione
 router.post("/sync/pokemon", syncPokemon);
 router.post("/sync/pokemon-jp", syncPokemonJp);
 router.post("/sync/yugioh", syncYugioh);

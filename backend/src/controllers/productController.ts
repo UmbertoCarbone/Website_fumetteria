@@ -1,14 +1,17 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 
-//rotta GET
+// Helper condiviso: mantiene coerenza anche senza trigger DB
+const computeAvailability = (stock: number) => stock > 0;
+
+// rotta GET
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const products = await prisma.product.findMany({
       include: {
         subCategory: {
           include: {
-            category: true, // Include anche la categoria padre
+            category: true,
           },
         },
       },
@@ -20,37 +23,41 @@ export const getProducts = async (req: Request, res: Response) => {
   }
 };
 
-//rotta POST
+// rotta POST
 export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, price, imageUrl, externalId, categoryName, subCategoryName } =
-      req.body;
+    const {
+      name,
+      price,
+      stock,
+      imageUrl,
+      externalId,
+      categoryName,
+      subCategoryName,
+    } = req.body;
 
-    // Usiamo una transazione per garantire l'integrità dei dati
+    const parsedStock = parseInt(stock?.toString() || "0", 10);
+
     const newProduct = await prisma.$transaction(async (tx) => {
-      // 1. Categoria
       const category = await tx.category.upsert({
         where: { name: categoryName },
         update: {},
         create: { name: categoryName },
       });
 
-      // 2. Sottocategoria
-      let subCategory = await tx.subCategory.findFirst({
-        where: { name: subCategoryName, categoryId: category.id },
+      const subCategory = await tx.subCategory.upsert({
+        where: {
+          name_categoryId: { name: subCategoryName, categoryId: category.id },
+        },
+        update: {},
+        create: { name: subCategoryName, categoryId: category.id },
       });
 
-      if (!subCategory) {
-        subCategory = await tx.subCategory.create({
-          data: { name: subCategoryName, categoryId: category.id },
-        });
-      }
-
-      // 3. Prodotto
       return await tx.product.create({
         data: {
           name,
           price: parseFloat(price.toString().replace(",", ".")),
+          stock: parsedStock,
           imageUrl,
           externalId,
           subCategoryId: subCategory.id,
@@ -60,7 +67,34 @@ export const createProduct = async (req: Request, res: Response) => {
 
     res.status(201).json(newProduct);
   } catch (error: any) {
-    // Se c'è un errore, Prisma annullerà automaticamente le operazioni precedenti
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// rotta PATCH /:id
+export const updateProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, price, stock, imageUrl } = req.body;
+
+    const data: Record<string, any> = {};
+    if (name !== undefined) data.name = name;
+    if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (price !== undefined)
+      data.price = parseFloat(price.toString().replace(",", "."));
+    if (stock !== undefined) {
+      const parsedStock = parseInt(stock.toString(), 10);
+      data.stock = parsedStock;
+      data.isAvailable = computeAvailability(parsedStock);
+    }
+
+    const updated = await prisma.product.update({
+      where: { id: Number(id) },
+      data,
+    });
+
+    res.status(200).json(updated);
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 };

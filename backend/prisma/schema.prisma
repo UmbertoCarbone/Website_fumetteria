@@ -20,16 +20,35 @@ model SubCategory {
   categoryId Int
   category   Category  @relation(fields: [categoryId], references: [id])
   products   Product[]
+
+  @@unique([name, categoryId])
 }
 
 model Product {
   id            Int         @id @default(autoincrement())
   name          String
   price         Decimal     @db.Decimal(10, 2)
+  stock         Int         @default(0)
+  isAvailable   Boolean     @default(false)
   imageUrl      String?
-  // Qui salverai lo slug, es: "one-piece-111"
-  externalId    String?     @unique
+  externalId    String      @unique
   subCategoryId Int
   subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
   createdAt     DateTime    @default(now())
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPERADMIN
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  username  String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
