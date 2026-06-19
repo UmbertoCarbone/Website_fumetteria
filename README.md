@@ -59,6 +59,16 @@ Markdown
 
 <br>
 
+### 🔄 Sincronizzazione API Esterne (Card Games)
+
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `POST` | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
+| `POST` | `/api/cards/sync/yugioh` | Sincronizzazione TCG Yu-Gi-Oh! (Es: `?limit=1&q=golem`) |
+| `POST` | `/api/cards/sync/onepiece` | Sincronizzazione TCG One Piece (Es: `?limit=1&q=luffy`) |
+
+<br>
+
 ### 🔍 Filtri Categoria
 
 _I filtri testuali applicano automaticamente il `.trim()` e la ricerca parziale case-insensitive (`contains`)._
