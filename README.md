@@ -29,17 +29,41 @@ Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione i
 
 ---
 
-## 🛣️ API Endpoints
-
-| Metodo | Endpoint             | Descrizione                     |
-| :----- | :------------------- | :------------------------------ |
-| `GET`  | `/`                  | Health Check (Stato Database)   |
-| `POST` | `/api/auth/register` | Registrazione Utente            |
-| `POST` | `/api/auth/login`    | Login & JWT Generation          |
-| `GET`  | `/api/users`         | Recupero lista utenti           |
-| `POST` | `/api/cards/sync`    | Sincronizzazione Catalogo (API) |
-| `GET`  | `/api/products`      | Query Catalogo (con Relazioni)  |
-
 ---
 
+## 🛣️ API Endpoints
 
+### 📦 Prodotti, Autenticazione e Sincronizzazione Esterna
+
+| Metodo   | Endpoint                  | Descrizione                                               |
+| :------- | :------------------------ | :-------------------------------------------------------- |
+| `GET`    | `/`                       | Health Check (Stato Database)                             |
+| `POST`   | `/api/auth/register`      | Registrazione Utente                                      |
+| `POST`   | `/api/auth/login`         | Login & JWT Generation                                    |
+| `GET`    | `/api/users`              | Recupero lista utenti                                     |
+| `GET`    | `/api/products`           | Recupero lista completa di tutti i prodotti               |
+| `POST`   | `/api/products`           | Creazione nuovo prodotto (con auto-upsert di Cat/SubCat)  |
+| `GET`    | `/api/products/:id`       | Recupero dettaglio singolo prodotto tramite ID            |
+| `PATCH`  | `/api/products/:id`       | Modifica parziale di un prodotto (es. variazioni stock)   |
+| `DELETE` | `/api/products/:id`       | Eliminazione definitiva di un prodotto                    |
+| `GET`    | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
+
+<br>
+
+### 🔍 Filtri Avanzati (Category & Sub-Category)
+
+_Tutti i filtri testuali applicano automaticamente il `.trim()` e la ricerca parziale case-insensitive (`contains`)._
+
+| Metodo | Endpoint                 | Parametri Query    | Filtro Applicato                                      |
+| :----- | :----------------------- | :----------------- | :---------------------------------------------------- |
+| `GET`  | `/api/products/category` | `?id=2`            | Cerca prodotti per **Solo ID Categoria**              |
+| `GET`  | `/api/products/category` | `?name=Manga`      | Cerca prodotti per **Solo Nome Categoria** (Parziale) |
+| `GET`  | `/api/products/category` | `?id=2&name=Manga` | Cerca prodotti per **ID + Nome Categoria**            |
+
+| Metodo | Endpoint                     | Parametri Query      | Filtro Applicato                                           |
+| :----- | :--------------------------- | :------------------- | :--------------------------------------------------------- |
+| `GET`  | `/api/products/sub-category` | `?id=4`              | Cerca prodotti per **Solo ID Sottocategoria**              |
+| `GET`  | `/api/products/sub-category` | `?name=Pokemon`      | Cerca prodotti per **Solo Nome Sottocategoria** (Parziale) |
+| `GET`  | `/api/products/sub-category` | `?id=4&name=Pokemon` | Cerca prodotti per **ID + Nome Sottocategoria**            |
+
+---
