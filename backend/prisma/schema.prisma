@@ -25,16 +25,21 @@ model SubCategory {
 }
 
 model Product {
-  id            Int         @id @default(autoincrement())
+  id            Int          @id @default(autoincrement())
   name          String
-  price         Decimal     @db.Decimal(10, 2)
-  stock         Int         @default(0)
-  isAvailable   Boolean     @default(false)
+  price         Decimal      @db.Decimal(10, 2)
+  stock         Int          @default(0)
+  isAvailable   Boolean      @default(false)
   imageUrl      String?
-  externalId    String      @unique
+  externalId    String       @unique
+  tcgplayerId   String?      // ID specifico di TCGPlayer (opzionale)
+  number        String?      // Numero/Codice della carta (es. DB1-EN098)
+  rarity        String?      // Rarità della carta (es. Ultra Rare)
+  set           String?      // Nome del set/espansione (es. Dark Beginning 1)
+  variant       String?      // Variante della carta (es. Unlimited, 1st Edition)
   subCategoryId Int
-  subCategory   SubCategory @relation(fields: [subCategoryId], references: [id])
-  createdAt     DateTime    @default(now())
+  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id])
+  createdAt     DateTime     @default(now())
 }
 
 enum Role {

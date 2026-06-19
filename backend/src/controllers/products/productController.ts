@@ -23,6 +23,32 @@ export const getProducts = async (req: Request, res: Response) => {
   }
 };
 
+// rotta GET /:id (Singolo prodotto tramite ID)
+export const getProductById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const product = await prisma.product.findUnique({
+      where: { id: Number(id) },
+      include: {
+        subCategory: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Prodotto non trovato" });
+    }
+
+    res.status(200).json(product);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // rotta POST
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -32,6 +58,11 @@ export const createProduct = async (req: Request, res: Response) => {
       stock,
       imageUrl,
       externalId,
+      tcgplayerId, // Nuovo campo
+      number,      // Nuovo campo
+      rarity,      // Nuovo campo
+      set,         // Nuovo campo
+      variant,     // Nuovo campo
       categoryName,
       subCategoryName,
     } = req.body;
@@ -58,8 +89,14 @@ export const createProduct = async (req: Request, res: Response) => {
           name,
           price: parseFloat(price.toString().replace(",", ".")),
           stock: parsedStock,
+          isAvailable: parsedStock > 0, // Manteniamo la coerenza automatica
           imageUrl,
           externalId,
+          tcgplayerId, // Salvataggio
+          number,      // Salvataggio
+          rarity,      // Salvataggio
+          set,         // Salvataggio
+          variant,     // Salvataggio
           subCategoryId: subCategory.id,
         },
       });
@@ -78,13 +115,31 @@ export const createProduct = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, price, stock, imageUrl } = req.body;
+    const { 
+      name, 
+      price, 
+      stock, 
+      imageUrl, 
+      tcgplayerId, 
+      number, 
+      rarity, 
+      set, 
+      variant 
+    } = req.body;
 
     const data: Record<string, any> = {};
+    
     if (name !== undefined) data.name = name;
     if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (tcgplayerId !== undefined) data.tcgplayerId = tcgplayerId;
+    if (number !== undefined) data.number = number;
+    if (rarity !== undefined) data.rarity = rarity;
+    if (set !== undefined) data.set = set;
+    if (variant !== undefined) data.variant = variant;
+    
     if (price !== undefined)
       data.price = parseFloat(price.toString().replace(",", "."));
+      
     if (stock !== undefined) {
       const parsedStock = parseInt(stock.toString(), 10);
       data.stock = parsedStock;
@@ -97,32 +152,6 @@ export const updateProduct = async (req: Request, res: Response) => {
     });
 
     res.status(200).json(updated);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// rotta GET /:id (Singolo prodotto tramite ID)
-export const getProductById = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-
-    const product = await prisma.product.findUnique({
-      where: { id: Number(id) },
-      include: {
-        subCategory: {
-          include: {
-            category: true,
-          },
-        },
-      },
-    });
-
-    if (!product) {
-      return res.status(404).json({ error: "Prodotto non trovato" });
-    }
-
-    res.status(200).json(product);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
