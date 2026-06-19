@@ -55,7 +55,7 @@ Markdown
 | `GET` | `/api/products/:id` | Recupero dettaglio singolo prodotto tramite ID |
 | `PATCH` | `/api/products/:id` | Modifica parziale di un prodotto (es. variazioni stock) |
 | `DELETE` | `/api/products/:id` | Eliminazione definitiva di un prodotto |
-| `GET` | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
+
 
 <br>
 
