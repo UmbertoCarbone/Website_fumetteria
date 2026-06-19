@@ -65,7 +65,10 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     });
 
-    res.status(201).json(newProduct);
+    res.status(201).json({
+      message: "Nuovo prodotto creato!",
+      product: newProduct,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -5,7 +5,10 @@ import prisma from "../../../db/connection.js";
  * ENDPOINT 2: Cerca prodotti per Sottocategoria (ID, Nome o entrambi)
  * POSTMAN: GET /api/products/sub-category?id=...&name=...
  */
-export const getProductsBySubCategoryFilter = async (req: Request, res: Response) => {
+export const getProductsBySubCategoryFilter = async (
+  req: Request,
+  res: Response,
+) => {
   try {
     const { id, name } = req.query;
 
@@ -13,7 +16,8 @@ export const getProductsBySubCategoryFilter = async (req: Request, res: Response
     if (!id && !name) {
       return res.status(400).json({
         error: true,
-        message: "Devi fornire almeno un parametro tra 'id' e 'name' della sottocategoria.",
+        message:
+          "Devi fornire almeno un parametro tra 'id' e 'name' della sottocategoria.",
       });
     }
 
@@ -25,9 +29,11 @@ export const getProductsBySubCategoryFilter = async (req: Request, res: Response
     }
 
     if (name) {
+      const cleanName = String(name).trim();
+
       subCategoryConditions.name = {
-        equals: String(name).trim(),
-        mode: "insensitive", // Ignora maiuscole e minuscole
+        contains: cleanName, // Cerca corrispondenze parziali (es. "piece" trova "One Piece")
+        mode: "insensitive", // Ignora maiuscole/minuscole
       };
     }
 
