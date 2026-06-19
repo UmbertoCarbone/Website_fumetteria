@@ -21,51 +21,46 @@ Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione i
 
 ## 🛠️ Stack Tecnologico
 
-| Frontend          | Backend           | Database       |
-| :---------------- | :---------------- | :------------- |
-| **React + Vite**  | **Node.js (ESM)** | **PostgreSQL** |
-| **Tailwind CSS**  | **TypeScript**    | **Prisma ORM** |
-| **Atomic Design** | **Zod / JWT**     | **Docker**     |
+| Frontend | Backend | Database |
+| :--- | :--- | :--- |
+| **React + Vite** | **Node.js (ESM)** | **PostgreSQL** |
+| **Tailwind CSS** | **TypeScript** | **Prisma ORM** |
+| **Atomic Design** | **Zod / JWT** | **Docker** |
 
 ---
 
----
-
-Ecco la struttura aggiornata con i titoli corretti e un layout delle tabelle omogeneo e pulito:
-
-Markdown
 ## 🛣️ API Endpoints
 
 ### 🔑 Autenticazione
 
 | Metodo | Endpoint | Descrizione |
 | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Registrazione Utente |
-| `POST` | `/api/auth/login` | Login & JWT Generation |
+| `POST` | `/api/auth/register` | Registrazione Nuovo Utente |
+| `POST` | `/api/auth/login` | Login utente & Generazione Token JWT |
+| `GET` | `/api/users` | Recupero lista utenti registrati |
 
 <br>
 
-### 📦 Gestione Prodotti & Sincronizzazione
+### 📦 Gestione Prodotti
 
 | Metodo | Endpoint | Descrizione |
 | :--- | :--- | :--- |
-| `GET` | `/api/users` | Recupero lista utenti |
-| `GET` | `/api/products` | Recupero lista completa di tutti i prodotti |
-| `POST` | `/api/products` | Creazione nuovo prodotto (con auto-upsert di Cat/SubCat) |
+| `GET` | `/api/products` | Recupero lista completa di tutti i prodotti (con relazioni) |
 | `GET` | `/api/products/:id` | Recupero dettaglio singolo prodotto tramite ID |
-| `PATCH` | `/api/products/:id` | Modifica parziale di un prodotto (es. variazioni stock) |
-| `DELETE` | `/api/products/:id` | Eliminazione definitiva di un prodotto |
-
+| `POST` | `/api/products` | Creazione nuovo prodotto (con auto-upsert di Categoria/Sottocategoria) |
+| `PATCH` | `/api/products/:id` | Modifica parziale di un prodotto (es. variazioni stock/prezzo) |
+| `DELETE` | `/api/products/:id` | Eliminazione definitiva di un prodotto dal catalogo |
 
 <br>
 
 ### 🔄 Sincronizzazione API Esterne (Card Games)
+_I dati di quotazione e catalogo vengono sincronizzati integrando i servizi di [TCG Price Lookup](https://tcgpricelookup.com/)._
 
 | Metodo | Endpoint | Descrizione |
 | :--- | :--- | :--- |
-| `POST` | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
-| `POST` | `/api/cards/sync/yugioh` | Sincronizzazione TCG Yu-Gi-Oh! (Es: `?limit=1&q=golem`) |
-| `POST` | `/api/cards/sync/onepiece` | Sincronizzazione TCG One Piece (Es: `?limit=1&q=luffy`) |
+| `GET` | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
+| `GET` | `/api/cards/sync/yugioh` | Sincronizzazione TCG Yu-Gi-Oh! (Es: `?limit=1&q=golem`) |
+| `GET` | `/api/cards/sync/onepiece` | Sincronizzazione TCG One Piece (Es: `?limit=1&q=luffy`) |
 
 <br>
 
