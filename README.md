@@ -21,11 +21,11 @@ Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione i
 
 ## 🛠️ Stack Tecnologico
 
-| Frontend | Backend | Database |
-| :--- | :--- | :--- |
-| **React + Vite** | **Node.js (ESM)** | **PostgreSQL** |
-| **Tailwind CSS** | **TypeScript** | **Prisma ORM** |
-| **Atomic Design** | **Zod / JWT** | **Docker** |
+| Componente | Tecnologie & Strumenti |
+| :--- | :--- |
+| **Frontend** | **React + Vite**, TypeScript, Tailwind CSS |
+| **Backend** | **Node.js (ESM)**, TypeScript, Express, Zod, JWT |
+| **Database** | **PostgreSQL**, Prisma ORM |
 
 ---
 
