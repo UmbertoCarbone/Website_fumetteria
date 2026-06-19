@@ -98,3 +98,49 @@ export const updateProduct = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// rotta GET /:id (Singolo prodotto tramite ID)
+export const getProductById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const product = await prisma.product.findUnique({
+      where: { id: Number(id) },
+      include: {
+        subCategory: {
+          include: {
+            category: true,
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return res.status(404).json({ error: "Prodotto non trovato" });
+    }
+
+    res.status(200).json(product);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// rotta DELETE /:id (Eliminazione prodotto)
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    await prisma.product.delete({
+      where: { id: Number(id) },
+    });
+
+    res.status(200).json({ message: "Prodotto eliminato con successo" });
+  } catch (error: any) {
+    if (error.code === "P2025") {
+      return res
+        .status(404)
+        .json({ error: "Impossibile eliminare: prodotto non trovato" });
+    }
+    res.status(500).json({ error: error.message });
+  }
+};
