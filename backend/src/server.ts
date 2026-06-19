@@ -30,6 +30,8 @@ app.use("/api/products", productRoutes);
 //import da apikey per carte
 app.use("/api/cards", cardRoutes);
 
+app.use("/api/products-filter", productRoutes);
+
 
 
 //query per testare il Backend acceso

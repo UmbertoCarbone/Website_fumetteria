@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import prisma from "../db/connection.js";
+import prisma from "../../db/connection.js";
 
 // Helper condiviso: mantiene coerenza anche senza trigger DB
 const computeAvailability = (stock: number) => stock > 0;
