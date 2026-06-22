@@ -1,0 +1,28 @@
+<mxfile host="65bd71144e">
+    <diagram id="qw9WNsKjJ3Jg70u_zt3O" name="Pagina-2">
+        <mxGraphModel dx="3997" dy="21814" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-1" value="CATEGORY&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameCategory: VARCHAR&#xa;slug: VARCHAR&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1770" y="-21020" width="220" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-2" value="SUBCATEGORY&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameSubCategory: VARCHAR&#xa;slug: VARCHAR&#xa;[FK] categoryId: INT&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1770" y="-20830" width="220" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-3" value="FRANCHISE&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameFranchise: VARCHAR&#xa;slug: VARCHAR&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1410" y="-21020" width="220" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-4" value="CARD (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;externalId: VARCHAR&#xa;number: VARCHAR&#xa;rarity: VARCHAR&#xa;set: VARCHAR&#xa;variant: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1830" y="-20610" width="220" height="280" as="geometry"/>
+                </mxCell>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-5" value="FUNKO POP (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;boxNumber: INT&#xa;isChase: BOOLEAN&#xa;stickerExclusive: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1570" y="-20610" width="220" height="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="pNP7yE_c4QTw9cZbjFBs-6" value="MANGA (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;volumeNumber: INT&#xa;author: VARCHAR&#xa;publisher: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="-1310" y="-20610" width="220" height="260" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

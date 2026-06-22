@@ -4,42 +4,7 @@ datasource db {
 }
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native"]
-}
-
-model Category {
-  id            Int           @id @default(autoincrement())
-  name          String        @unique
-  subCategories SubCategory[]
-}
-
-model SubCategory {
-  id         Int       @id @default(autoincrement())
-  name       String
-  categoryId Int
-  category   Category  @relation(fields: [categoryId], references: [id])
-  products   Product[]
-
-  @@unique([name, categoryId])
-}
-
-model Product {
-  id            Int          @id @default(autoincrement())
-  name          String
-  price         Decimal      @db.Decimal(10, 2)
-  stock         Int          @default(0)
-  isAvailable   Boolean      @default(false)
-  imageUrl      String?
-  externalId    String       @unique
-  tcgplayerId   String?      // ID specifico di TCGPlayer (opzionale)
-  number        String?      // Numero/Codice della carta (es. DB1-EN098)
-  rarity        String?      // Rarità della carta (es. Ultra Rare)
-  set           String?      // Nome del set/espansione (es. Dark Beginning 1)
-  variant       String?      // Variante della carta (es. Unlimited, 1st Edition)
-  subCategoryId Int
-  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id])
-  createdAt     DateTime     @default(now())
+  provider = "prisma-client-js"
 }
 
 enum Role {
@@ -56,4 +21,84 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  nameCategory  String        @unique
+  slug          String        @unique
+  subCategories SubCategory[] // Corretto: La categoria ha molte sottocategorie
+  createdAt     DateTime      @default(now())
+}
+
+model SubCategory {
+  id              Int        @id @default(autoincrement())
+  nameSubCategory String
+  slug            String     @unique
+  categoryId      Int
+  category        Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products        Product[]  // La sottocategoria ha molti prodotti
+  createdAt       DateTime   @default(now())
+
+  @@unique([nameSubCategory, categoryId])
+}
+
+model Franchise {
+  id            Int        @id @default(autoincrement())
+  nameFranchise String     @unique
+  slug          String     @unique
+  products      Product[]
+  createdAt     DateTime   @default(now())
+}
+
+// TABELLA MADRE: Centralizza tutto
+model Product {
+  id            Int          @id @default(autoincrement())
+  name          String
+  price         Decimal      @db.Decimal(10, 2)
+  stock         Int          @default(0)
+  isAvailable   Boolean      @default(false)
+  type          String       // "CARD", "FUNKO", "MANGA"
+  subCategoryId Int
+  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
+  franchiseId   Int
+  franchise     Franchise    @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
+  createdAt     DateTime     @default(now())
+
+  // Relazioni 1-a-1 opzionali verso i dettagli specifici
+  cardId        Int?         @unique
+  card          Card?        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  funkoPopId    Int?         @unique
+  funkoPop      FunkoPop?    @relation(fields: [funkoPopId], references: [id], onDelete: Cascade)
+  
+  mangaId       Int?         @unique
+  manga         Manga?       @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+}
+
+// TABELLE FIGLIE: Contengono SOLO i campi extra del tipo specifico
+model Card {
+  id          Int      @id @default(autoincrement())
+  externalId  String   @unique
+  number      String
+  rarity      String
+  set         String
+  variant     String
+  product     Product?
+}
+
+model FunkoPop {
+  id               Int      @id @default(autoincrement())
+  boxNumber        Int
+  isChase          Boolean  @default(false)
+  stickerExclusive String?
+  product          Product?
+}
+
+model Manga {
+  id           Int      @id @default(autoincrement())
+  volumeNumber Int
+  author       String
+  publisher    String
+  product      Product?
 }
