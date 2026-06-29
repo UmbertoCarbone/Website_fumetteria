@@ -97,8 +97,11 @@ model FunkoPop {
 
 model Manga {
   id           Int      @id @default(autoincrement())
+  externalId   Int      @unique  // <--- Aggiungi questa riga per l'ID univoco di MyAnimeList
   volumeNumber Int
   author       String
   publisher    String
+  synopsis     String?
+  imageUrl     String?
   product      Product?
 }

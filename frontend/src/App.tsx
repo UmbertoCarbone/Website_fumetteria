@@ -22,7 +22,7 @@ function App() {
   useEffect(() => {
     const fetchCards = async () => {
       try {
-        const response = await fetch("http://localhost:0000/api/products");
+        const response = await fetch("http://localhost:5121/api/products");
 
         if (!response.ok) {
           throw new Error("Errore durante il recupero dei prodotti dal server");

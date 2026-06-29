@@ -13,7 +13,7 @@ import productRoutes from "./routes/productRoutes.js";
 //fetch + POST per importare carte nel DB principale
 import cardRoutes from "./routes/cardRoutes.js";
 
-
+import mangaSyncRoutes from "./routes/mangaRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5121;
 
@@ -31,7 +31,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/cards", cardRoutes);
 
 app.use("/api/products-filter", productRoutes);
-
+//fetch manga
+app.use("/api/manga", mangaSyncRoutes);
 
 
 //query per testare il Backend acceso
