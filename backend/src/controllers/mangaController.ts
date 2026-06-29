@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 
-// Helper interno per creare gli slug richiesti dallo schema (identico al tuo)
+// Helper interno per creare gli slug richiesti dallo schema
 const createSlug = (text: string) => {
   return text
     .toLowerCase()
@@ -38,7 +38,7 @@ const saveMangaProductWithCategory = async (
       create: { nameCategory: catName, slug: catSlug },
     });
 
-    // 2. Upsert Sottocategoria usando la chiave composta del tuo schema
+    // 2. Upsert Sottocategoria usando la chiave composta dello schema
     const subCategory = await tx.subCategory.upsert({
       where: {
         nameSubCategory_categoryId: {
@@ -54,7 +54,7 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 3. Upsert Franchise basato sul nome della sottocategoria (es. Naruto, Berserk)
+    // 3. Upsert Franchise basato sul nome della sottocategoria (es. Naruto, Bleach)
     const franchise = await tx.franchise.upsert({
       where: { slug: createSlug(subCatName) },
       update: { nameFranchise: subCatName },
@@ -119,7 +119,7 @@ const performMangaSync = async (
   sub: string,
 ) => {
   try {
-    const { q, limit } = req.query;
+    const { q } = req.query;
 
     if (!q || typeof q !== "string" || q.trim() === "") {
       return res.status(400).json({
@@ -129,11 +129,9 @@ const performMangaSync = async (
       });
     }
 
-    const searchLimit = limit ? String(limit).trim() : "5";
-
-    // Chiamata all'API pubblica di Jikan (MyAnimeList)
+    // Chiamata all'API di Jikan senza parametri di limite per scaricare l'intera lista della pagina 1
     const apiResponse = await fetch(
-      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}&limit=${searchLimit}`,
+      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}`,
     );
 
     const data = await apiResponse.json();
@@ -152,7 +150,7 @@ const performMangaSync = async (
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata (con controllo duplicati) per l'opera "${sub}" in ${cat}!`,
+      message: `Sincronizzazione completata con successo per tutte le opere di "${sub}" in ${cat}!`,
     });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
@@ -162,7 +160,6 @@ const performMangaSync = async (
 // Rotta esposta per sincronizzare i Manga dinamicamente in base alla ricerca
 export const syncManga = async (req: Request, res: Response) => {
   const { q } = req.query;
-  // Usiamo il nome della ricerca (es. "Naruto" o "Bleach") direttamente come nome della Sottocategoria e del Franchise
   const subCategoryName = q ? String(q).trim() : "Manga Generico";
   await performMangaSync(req, res, "Manga", subCategoryName);
 };
