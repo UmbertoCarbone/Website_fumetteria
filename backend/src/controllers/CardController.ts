@@ -11,36 +11,46 @@ const createSlug = (text: string) => {
     .replace(/^-+|-+$/g, "");
 };
 
-const saveMangaProductWithCategory = async (
-  manga: any,
+// Mapping per uniformare i Franchise e mappare i valori corretti per l'API
+const gameMapping: Record<string, { apiValue: string; franchiseName: string }> =
+  {
+    Pokemon: { apiValue: "pokemon", franchiseName: "Pokémon" },
+    PokemonJP: { apiValue: "pokemon", franchiseName: "Pokémon" },
+    "One Piece": { apiValue: "onepiece", franchiseName: "One Piece" },
+    YuGiOh: { apiValue: "yugioh", franchiseName: "Yu-Gi-Oh!" },
+  };
+
+const saveProductWithCategory = async (
+  card: any,
   catName: string,
   subCatName: string,
-  franchiseName: string,
 ) => {
   const catSlug = createSlug(catName);
   const subCatSlug = createSlug(subCatName);
-  const franchiseSlug = createSlug(franchiseName);
 
-  // Dati univoci dall'API
-  const malId = Number(manga.mal_id);
-  const title = manga.title || "Manga senza titolo";
-  const authorName = manga.authors[0]?.name || "Unknown Author";
-  const synopsisText = manga.synopsis || null;
-  const coverUrl = manga.images?.jpg?.image_url || null;
-  const volumeNum = manga.volumes || 1;
+  // Otteniamo il nome reale del franchise e il valore api corretto
+  const franchiseInfo = gameMapping[subCatName] || {
+    apiValue: "yugioh",
+    franchiseName: subCatName,
+  };
 
-  const defaultPrice = 5.2;
+  // Estraiamo in sicurezza il nome del set (visto che dall'API arriva come oggetto)
+  const setStringName = card.set?.name || "Unknown Set";
+
+  // Estraiamo il prezzo corretto dall'albero dei prezzi dell'API
+  const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
   const defaultStock = 10;
+  const computedPrice = Number(marketPrice);
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Upsert Categoria Madre (sempre "Manga")
+    // 1. Upsert Categoria (Nome campo aggiornato a nameCategory)
     const category = await tx.category.upsert({
       where: { slug: catSlug },
       update: { nameCategory: catName },
       create: { nameCategory: catName, slug: catSlug },
     });
 
-    // 2. Upsert Sottocategoria basata sul formato (es. "Manga", "Novel")
+    // 2. Upsert Sottocategoria (Usa la chiave composta aggiornata dallo schema)
     const subCategory = await tx.subCategory.upsert({
       where: {
         nameSubCategory_categoryId: {
@@ -56,121 +66,129 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 3. Upsert Franchise basato sul nome pulito passato dall'URL (es. "One Piece", "Bleach")
+    // 3. Upsert Franchise (Nome campo aggiornato a nameFranchise)
     const franchise = await tx.franchise.upsert({
-      where: { slug: franchiseSlug },
-      update: { nameFranchise: franchiseName },
+      where: { slug: createSlug(franchiseInfo.franchiseName) },
+      update: { nameFranchise: franchiseInfo.franchiseName },
       create: {
-        nameFranchise: franchiseName,
-        slug: franchiseSlug,
+        nameFranchise: franchiseInfo.franchiseName,
+        slug: createSlug(franchiseInfo.franchiseName),
       },
     });
 
-    // 4. Upsert dei dati specifici del Manga (Tabella Figlia) tramite externalId
-    const savedManga = await tx.manga.upsert({
-      where: { externalId: malId },
+    // 4. Gestione Dati Specifici della Carta (Tabella Figlia indipendente)
+    const savedCard = await tx.card.upsert({
+      where: { externalId: card.id },
       update: {
-        volumeNumber: volumeNum,
-        author: authorName,
-        synopsis: synopsisText,
-        imageUrl: coverUrl,
+        number: card.number,
+        rarity: card.rarity || "Common",
+        set: setStringName,
+        variant: card.variant || "",
       },
       create: {
-        externalId: malId,
-        volumeNumber: volumeNum,
-        author: authorName,
-        publisher: "Default Publisher",
-        synopsis: synopsisText,
-        imageUrl: coverUrl,
+        externalId: card.id,
+        number: card.number,
+        rarity: card.rarity || "Common",
+        set: setStringName,
+        variant: card.variant || "",
       },
     });
 
-    // 5. Controllo se il Prodotto Madre è già associato a questo specifico Manga
+    // 5. Gestione Prodotto Generico (Verifica se esiste già agganciato a questa carta)
     const existingProduct = await tx.product.findUnique({
-      where: { mangaId: savedManga.id },
+      where: { cardId: savedCard.id },
     });
 
     if (existingProduct) {
+      // Se esiste, aggiorna solo il prezzo di mercato
       return await tx.product.update({
         where: { id: existingProduct.id },
-        data: { name: title },
+        data: { price: computedPrice },
       });
     } else {
+      // Se è nuovo, crea il record prodotto completo collegando l'ID della carta appena salvata
       return await tx.product.create({
         data: {
-          name: title,
-          price: defaultPrice,
+          name: `${card.name} (${card.number || "N/D"})`,
+          price: computedPrice,
           stock: defaultStock,
           isAvailable: defaultStock > 0,
-          type: "MANGA",
+          type: "CARD",
           subCategoryId: subCategory.id,
           franchiseId: franchise.id,
-          mangaId: savedManga.id,
+          cardId: savedCard.id, // Collegamento 1-a-1 invertito
         },
       });
     }
   });
 };
 
-export const syncManga = async (req: Request, res: Response) => {
+const performSync = async (
+  req: Request,
+  res: Response,
+  cat: string,
+  sub: string,
+) => {
   try {
-    const { q, franchise } = req.query;
+    const { q, set, limit } = req.query;
 
-    // Adesso blocchiamo la richiesta se manca la query di ricerca o il nome del franchise desiderato
     if (!q || typeof q !== "string" || q.trim() === "") {
       return res.status(400).json({
         error: true,
         message:
-          "Richiesta non valida: il parametro di ricerca 'q' è obbligatorio.",
+          "Richiesta non valida: il parametro di ricerca 'q' è obbligatorio nell'URL.",
       });
     }
 
-    if (
-      !franchise ||
-      typeof franchise !== "string" ||
-      franchise.trim() === ""
-    ) {
-      return res.status(400).json({
-        error: true,
-        message:
-          "Richiesta non valida: il parametro 'franchise' è obbligatorio per associare correttamente i prodotti.",
-      });
-    }
+    const apiKey = process.env.CARD_API_KEY;
+    const mappingInfo = gameMapping[sub] || {
+      apiValue: "yugioh",
+      franchiseName: "Yu-Gi-Oh!",
+    };
 
-    const franchiseTarget = franchise.trim();
+    const queryParams: Record<string, string> = {
+      q: q.trim(),
+      game: mappingInfo.apiValue,
+    };
+    if (set) queryParams.set = String(set).trim();
+    if (limit) queryParams.limit = String(limit).trim();
 
-    // Chiamata a Jikan senza limiti per prendere tutti i risultati della prima pagina
+    const params = new URLSearchParams(queryParams);
+
     const apiResponse = await fetch(
-      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}`,
+      `https://api.tcgpricelookup.com/v1/cards/search?${params.toString()}`,
+      { headers: { "X-API-Key": apiKey!, Accept: "application/json" } },
     );
 
     const data = await apiResponse.json();
 
-    if (!data.data || data.data.length === 0) {
-      return res.status(404).json({
-        error: true,
-        message: "Nessun manga trovato su MyAnimeList con questa query.",
-      });
+    if (!data.data) {
+      throw new Error(data.message || "Errore nel recupero dati dall'API");
     }
 
-    // Ciclo sui manga ricevuti
-    for (const manga of data.data) {
-      // Sottocategoria dinamica estratta dal formato dell'opera (es. "Manga" o "Novel")
-      const formatType = manga.type || "Manga";
-
-      await saveMangaProductWithCategory(
-        manga,
-        "Manga",
-        formatType,
-        franchiseTarget,
-      );
+    for (const card of data.data) {
+      await saveProductWithCategory(card, cat, sub);
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata con successo! Tutti i prodotti trovati sono stati collegati al franchise "${franchiseTarget}".`,
+      message: `Sincronizzazione completata con successo per ${sub} in ${cat}!`,
     });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
   }
+};
+
+// Rotte esposte per la sincronizzazione delle card
+export const syncPokemon = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "Pokemon");
+};
+export const syncPokemonJp = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "PokemonJP");
+};
+export const syncOnePiece = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "One Piece");
+};
+export const syncYugioh = async (req: Request, res: Response) => {
+  await performSync(req, res, "Carte", "YuGiOh");
 };

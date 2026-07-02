@@ -15,30 +15,32 @@ const saveMangaProductWithCategory = async (
   manga: any,
   catName: string,
   subCatName: string,
+  franchiseName: string
 ) => {
   const catSlug = createSlug(catName);
   const subCatSlug = createSlug(subCatName);
+  const franchiseSlug = createSlug(franchiseName);
 
-  // mal_id è l'ID univoco fornito dall'API di MyAnimeList
+  // Dati univoci dall'API
   const malId = Number(manga.mal_id);
   const title = manga.title || "Manga senza titolo";
   const authorName = manga.authors[0]?.name || "Unknown Author";
   const synopsisText = manga.synopsis || null;
   const coverUrl = manga.images?.jpg?.image_url || null;
-  const volumeNum = manga.volumes || 1; // Numero di volumi o 1 se in corso/indefinito
+  const volumeNum = manga.volumes || 1;
 
-  const defaultPrice = 5.2;
+  const defaultPrice = 5.20;
   const defaultStock = 10;
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Upsert Categoria
+    // 1. Upsert Categoria Madre (sempre "Manga")
     const category = await tx.category.upsert({
       where: { slug: catSlug },
       update: { nameCategory: catName },
       create: { nameCategory: catName, slug: catSlug },
     });
 
-    // 2. Upsert Sottocategoria usando la chiave composta dello schema
+    // 2. Upsert Sottocategoria basata sul formato (es. "Manga", "Novel")
     const subCategory = await tx.subCategory.upsert({
       where: {
         nameSubCategory_categoryId: {
@@ -54,17 +56,17 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 3. Upsert Franchise basato sul nome della sottocategoria (es. Naruto, Bleach)
+    // 3. Upsert Franchise basato sul nome pulito passato dall'URL (es. "One Piece", "Bleach")
     const franchise = await tx.franchise.upsert({
-      where: { slug: createSlug(subCatName) },
-      update: { nameFranchise: subCatName },
+      where: { slug: franchiseSlug },
+      update: { nameFranchise: franchiseName },
       create: {
-        nameFranchise: subCatName,
-        slug: createSlug(subCatName),
+        nameFranchise: franchiseName,
+        slug: franchiseSlug,
       },
     });
 
-    // 4. Upsert dei Dati Specifici del Manga usando l'externalId (mal_id)
+    // 4. Upsert dei dati specifici del Manga (Tabella Figlia) tramite externalId
     const savedManga = await tx.manga.upsert({
       where: { externalId: malId },
       update: {
@@ -77,25 +79,23 @@ const saveMangaProductWithCategory = async (
         externalId: malId,
         volumeNumber: volumeNum,
         author: authorName,
-        publisher: "Default Publisher", // MyAnimeList non ha editori locali
+        publisher: "Default Publisher",
         synopsis: synopsisText,
         imageUrl: coverUrl,
       },
     });
 
-    // 5. Verifica se esiste già il Prodotto collegato a questo Manga
+    // 5. Controllo se il Prodotto Madre è già associato a questo specifico Manga
     const existingProduct = await tx.product.findUnique({
       where: { mangaId: savedManga.id },
     });
 
     if (existingProduct) {
-      // Se esiste già, aggiorniamo solo il nome in caso sia cambiato nell'API
       return await tx.product.update({
         where: { id: existingProduct.id },
         data: { name: title },
       });
     } else {
-      // Se è completamente nuovo, crea il record Prodotto agganciandolo al Manga
       return await tx.product.create({
         data: {
           name: title,
@@ -105,33 +105,37 @@ const saveMangaProductWithCategory = async (
           type: "MANGA",
           subCategoryId: subCategory.id,
           franchiseId: franchise.id,
-          mangaId: savedManga.id, // Collegamento 1-a-1
+          mangaId: savedManga.id,
         },
       });
     }
   });
 };
 
-const performMangaSync = async (
-  req: Request,
-  res: Response,
-  cat: string,
-  sub: string,
-) => {
+export const syncManga = async (req: Request, res: Response) => {
   try {
-    const { q } = req.query;
+    const { q, franchise } = req.query;
 
+    // Adesso blocchiamo la richiesta se manca la query di ricerca o il nome del franchise desiderato
     if (!q || typeof q !== "string" || q.trim() === "") {
       return res.status(400).json({
         error: true,
-        message:
-          "Richiesta non valida: il parametro di ricerca 'q' è obbligatorio nell'URL.",
+        message: "Richiesta non valida: il parametro di ricerca 'q' è obbligatorio.",
       });
     }
 
-    // Chiamata all'API di Jikan senza parametri di limite per scaricare l'intera lista della pagina 1
+    if (!franchise || typeof franchise !== "string" || franchise.trim() === "") {
+      return res.status(400).json({
+        error: true,
+        message: "Richiesta non valida: il parametro 'franchise' è obbligatorio per associare correttamente i prodotti.",
+      });
+    }
+
+    const franchiseTarget = franchise.trim();
+
+    // Chiamata a Jikan senza limiti per prendere tutti i risultati della prima pagina
     const apiResponse = await fetch(
-      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}`,
+      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}`
     );
 
     const data = await apiResponse.json();
@@ -143,23 +147,19 @@ const performMangaSync = async (
       });
     }
 
-    // Ciclo sui manga ricevuti dall'API e salvataggio sequenziale nel database
+    // Ciclo sui manga ricevuti
     for (const manga of data.data) {
-      await saveMangaProductWithCategory(manga, cat, sub);
+      // Sottocategoria dinamica estratta dal formato dell'opera (es. "Manga" o "Novel")
+      const formatType = manga.type || "Manga"; 
+      
+      await saveMangaProductWithCategory(manga, "Manga", formatType, franchiseTarget);
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata con successo per tutte le opere di "${sub}" in ${cat}!`,
+      message: `Sincronizzazione completata con successo! Tutti i prodotti trovati sono stati collegati al franchise "${franchiseTarget}".`,
     });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
   }
-};
-
-// Rotta esposta per sincronizzare i Manga dinamicamente in base alla ricerca
-export const syncManga = async (req: Request, res: Response) => {
-  const { q } = req.query;
-  const subCategoryName = q ? String(q).trim() : "Manga Generico";
-  await performMangaSync(req, res, "Manga", subCategoryName);
 };
