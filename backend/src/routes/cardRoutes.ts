@@ -5,7 +5,7 @@ import {
   syncPokemonJp,
   syncYugioh,
   syncOnePiece,
-} from "../controllers/cardController.js";
+} from "../controllers/CardController.js";
 
 
 

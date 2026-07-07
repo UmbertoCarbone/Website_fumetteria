@@ -27,28 +27,28 @@ model Category {
   id            Int           @id @default(autoincrement())
   nameCategory  String        @unique
   slug          String        @unique
-  subCategories SubCategory[] // Corretto: La categoria ha molte sottocategorie
+  subCategories SubCategory[] // La categoria ha molte sottocategorie
   createdAt     DateTime      @default(now())
 }
 
 model SubCategory {
-  id              Int        @id @default(autoincrement())
+  id              Int         @id @default(autoincrement())
   nameSubCategory String
-  slug            String     @unique
+  slug            String      @unique
   categoryId      Int
-  category        Category   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  products        Product[]  // La sottocategoria ha molti prodotti
-  createdAt       DateTime   @default(now())
+  category        Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  products        Product[]   // La sottocategoria ha molti prodotti
+  createdAt       DateTime    @default(now())
 
   @@unique([nameSubCategory, categoryId])
 }
 
 model Franchise {
-  id            Int        @id @default(autoincrement())
-  nameFranchise String     @unique
-  slug          String     @unique
+  id            Int       @id @default(autoincrement())
+  nameFranchise String    @unique
+  slug          String    @unique
   products      Product[]
-  createdAt     DateTime   @default(now())
+  createdAt     DateTime  @default(now())
 }
 
 // TABELLA MADRE: Centralizza tutto
@@ -58,7 +58,7 @@ model Product {
   price         Decimal      @db.Decimal(10, 2)
   stock         Int          @default(0)
   isAvailable   Boolean      @default(false)
-  type          String       // "CARD", "FUNKO", "MANGA"
+  type          String       // "CARD", "FUNKO", "MANGA", "BOARDGAME"
   subCategoryId Int
   subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
   franchiseId   Int
@@ -74,17 +74,21 @@ model Product {
   
   mangaId       Int?         @unique
   manga         Manga?       @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+
+  // Relazione 1-a-1 per i Giochi da Tavolo
+  boardGameId   Int?         @unique
+  boardGame     BoardGame?   @relation(fields: [boardGameId], references: [id], onDelete: Cascade)
 }
 
-// TABELLE FIGLIE: Contengono SOLO i campi extra del tipo specifico
+// TABELLES FIGLIE: Contengono SOLO i campi extra del tipo specifico
 model Card {
-  id          Int      @id @default(autoincrement())
-  externalId  String   @unique
-  number      String
-  rarity      String
-  set         String
-  variant     String
-  product     Product?
+  id         Int      @id @default(autoincrement())
+  externalId String   @unique
+  number     String
+  rarity     String
+  set        String
+  variant    String
+  product    Product?
 }
 
 model FunkoPop {
@@ -97,11 +101,27 @@ model FunkoPop {
 
 model Manga {
   id           Int      @id @default(autoincrement())
-  externalId   Int      @unique  // <--- Aggiungi questa riga per l'ID univoco di MyAnimeList
+  externalId   Int      @unique  // ID univoco di MyAnimeList
   volumeNumber Int
   author       String
   publisher    String
   synopsis     String?
   imageUrl     String?
   product      Product?
+}
+
+model BoardGame {
+  id            Int      @id @default(autoincrement())
+  bggId         Int      @unique  // ID univoco di BoardGameGeek
+  description   String?  @db.Text // Descrizione completa
+  imageUrl      String?  // Copertina HD
+  thumbnailUrl  String?  // Miniatura
+  minPlayers    Int?     // Min giocatori
+  maxPlayers    Int?     // Max giocatori
+  playingTime   Int?     // Durata media
+  minPlayTime   Int?     // Durata minima
+  maxPlayTime   Int?     // Durata massima
+  minAge        Int?     // Età consigliata
+  yearPublished Int?     // Anno di rilascio
+  product       Product?
 }

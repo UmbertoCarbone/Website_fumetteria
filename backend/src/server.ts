@@ -12,8 +12,12 @@ import productRoutes from "./routes/productRoutes.js";
 
 //fetch + POST per importare carte nel DB principale
 import cardRoutes from "./routes/cardRoutes.js";
-
+//fetch giochi da tavolo
+import boardGameRoutes from "./routes/boardGameRoutes.js";
+//fetch manga
 import mangaSyncRoutes from "./routes/mangaRoutes.js";
+
+
 const app = express();
 const PORT = process.env.PORT || 5121;
 
@@ -33,6 +37,8 @@ app.use("/api/cards", cardRoutes);
 app.use("/api/products-filter", productRoutes);
 //fetch manga
 app.use("/api/manga", mangaSyncRoutes);
+//fetch giochi da tavolo
+app.use("/api/boardgame", boardGameRoutes);
 
 
 //query per testare il Backend acceso

@@ -11,6 +11,9 @@ const createSlug = (text: string) => {
     .replace(/^-+|-+$/g, "");
 };
 
+// Helper per fermare l'esecuzione (evita il rate limit di Jikan)
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const saveMangaProductWithCategory = async (
   manga: any,
   catName: string,
@@ -21,7 +24,6 @@ const saveMangaProductWithCategory = async (
   const subCatSlug = createSlug(subCatName);
   const franchiseSlug = createSlug(franchiseName);
 
-  // Dati univoci dall'API
   const malId = Number(manga.mal_id);
   const title = manga.title || "Manga senza titolo";
   const authorName = manga.authors[0]?.name || "Unknown Author";
@@ -33,14 +35,14 @@ const saveMangaProductWithCategory = async (
   const defaultStock = 10;
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Upsert Categoria Madre (sempre "Manga")
+    // 1. Upsert Categoria Madre (Manga)
     const category = await tx.category.upsert({
       where: { slug: catSlug },
       update: { nameCategory: catName },
       create: { nameCategory: catName, slug: catSlug },
     });
 
-    // 2. Upsert Sottocategoria basata sul formato (es. "Manga", "Novel")
+    // 2. Upsert Sottocategoria (Manga, Novel, etc.)
     const subCategory = await tx.subCategory.upsert({
       where: {
         nameSubCategory_categoryId: {
@@ -56,7 +58,7 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 3. Upsert Franchise basato sul nome pulito passato dall'URL (es. "One Piece", "Bleach")
+    // 3. Upsert Franchise dinamico
     const franchise = await tx.franchise.upsert({
       where: { slug: franchiseSlug },
       update: { nameFranchise: franchiseName },
@@ -66,7 +68,7 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 4. Upsert dei dati specifici del Manga (Tabella Figlia) tramite externalId
+    // 4. Upsert Manga specifico
     const savedManga = await tx.manga.upsert({
       where: { externalId: malId },
       update: {
@@ -85,7 +87,7 @@ const saveMangaProductWithCategory = async (
       },
     });
 
-    // 5. Controllo se il Prodotto Madre è già associato a questo specifico Manga
+    // 5. Aggancio al Prodotto Madre
     const existingProduct = await tx.product.findUnique({
       where: { mangaId: savedManga.id },
     });
@@ -116,7 +118,6 @@ export const syncManga = async (req: Request, res: Response) => {
   try {
     const { q, franchise } = req.query;
 
-    // Adesso blocchiamo la richiesta se manca la query di ricerca o il nome del franchise desiderato
     if (!q || typeof q !== "string" || q.trim() === "") {
       return res.status(400).json({
         error: true,
@@ -127,37 +128,71 @@ export const syncManga = async (req: Request, res: Response) => {
     if (!franchise || typeof franchise !== "string" || franchise.trim() === "") {
       return res.status(400).json({
         error: true,
-        message: "Richiesta non valida: il parametro 'franchise' è obbligatorio per associare correttamente i prodotti.",
+        message: "Richiesta non valida: il parametro 'franchise' è obbligatorio.",
       });
     }
 
     const franchiseTarget = franchise.trim();
+    let currentPage = 1;
+    let hasNextPage = true;
+    let totalSaved = 0;
 
-    // Chiamata a Jikan senza limiti per prendere tutti i risultati della prima pagina
-    const apiResponse = await fetch(
-      `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}`
-    );
+    while (hasNextPage) {
+      const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q.trim())}&page=${currentPage}`;
+      console.log("=== EFFETTUO FETCH A ===", url);
 
-    const data = await apiResponse.json();
-
-    if (!data.data || data.data.length === 0) {
-      return res.status(404).json({
-        error: true,
-        message: "Nessun manga trovato su MyAnimeList con questa query.",
+      const apiResponse = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
       });
-    }
 
-    // Ciclo sui manga ricevuti
-    for (const manga of data.data) {
-      // Sottocategoria dinamica estratta dal formato dell'opera (es. "Manga" o "Novel")
-      const formatType = manga.type || "Manga"; 
+      // Gestione del limite di richieste di Jikan (Rate Limit 429)
+      if (apiResponse.status === 429) {
+        console.log("=== ATTENZIONE: RATE LIMIT 429 ===");
+        await delay(2000); 
+        continue;
+      }
+
+      // Gestione dei crash/timeout dei server esterni di MyAnimeList (502, 503, 504)
+      if (apiResponse.status >= 500) {
+        console.log(`=== ERRORE SERVER ESTERNO JIKAN/MAL: ${apiResponse.status} ===`);
+        return res.status(503).json({
+          error: true,
+          message: "I server di MyAnimeList o Jikan sono temporaneamente sovraccarichi o offline. Riprova tra qualche minuto.",
+        });
+      }
+
+      const data = await apiResponse.json();
+
+      if (!data.data || data.data.length === 0) {
+        if (currentPage === 1) {
+          return res.status(404).json({
+            error: true,
+            message: "Nessun manga trovato su MyAnimeList con questa query.",
+          });
+        }
+        break;
+      }
+
+      for (const manga of data.data) {
+        const formatType = manga.type || "Manga";
+        await saveMangaProductWithCategory(manga, "Manga", formatType, franchiseTarget);
+        totalSaved++;
+      }
+
+      hasNextPage = data.pagination?.has_next_page || false;
       
-      await saveMangaProductWithCategory(manga, "Manga", formatType, franchiseTarget);
+      if (hasNextPage) {
+        currentPage++;
+        await delay(1000); // Pausa di sicurezza tra le pagine
+      }
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata con successo! Tutti i prodotti trovati sono stati collegati al franchise "${franchiseTarget}".`,
+      message: `Sincronizzazione completata! Inseriti/Aggiornati con successo ${totalSaved} volumi legati al franchise "${franchiseTarget}".`,
     });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
