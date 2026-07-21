@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
-import { resolveCategory, resolveFranchise } from "../service/catalogSync.js"
+import { resolveCategory, resolveFranchise } from "../service/catalogSync.js";
 
 // Mapping per uniformare i nomi dei giochi verso l'API e verso il Franchise canonico
 const gameMapping: Record<string, { apiValue: string; franchiseName: string }> = {
@@ -19,6 +19,7 @@ const saveCardProduct = async (card: any, subCatName: string) => {
   const setName = card.set?.name || "Unknown Set";
   const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
   const externalId = String(card.id);
+  const imageUrl = card.image_url || null;
 
   return await prisma.$transaction(async (tx) => {
     // Category fissa per tutte le carte, indipendentemente dal gioco
@@ -42,6 +43,7 @@ const saveCardProduct = async (card: any, subCatName: string) => {
       },
       update: {
         price: Number(marketPrice),
+        images: imageUrl ? [imageUrl] : [],
       },
       create: {
         sku: `CARD-${externalId}`,
@@ -53,6 +55,7 @@ const saveCardProduct = async (card: any, subCatName: string) => {
         franchiseId: franchise.id,
         externalId,
         externalSource: "TCG_PRICE_LOOKUP",
+        images: imageUrl ? [imageUrl] : [],
       },
     });
 
