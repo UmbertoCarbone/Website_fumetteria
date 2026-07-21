@@ -1,142 +1,91 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
+import { resolveCategory, resolveFranchise } from "../service/catalogSync.js"
 
-// Helper interno per creare gli slug richiesti dallo schema
-const createSlug = (text: string) => {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_-]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+// Mapping per uniformare i nomi dei giochi verso l'API e verso il Franchise canonico
+const gameMapping: Record<string, { apiValue: string; franchiseName: string }> = {
+  Pokemon: { apiValue: "pokemon", franchiseName: "Pokémon" },
+  PokemonJP: { apiValue: "pokemon", franchiseName: "Pokémon" },
+  "One Piece": { apiValue: "onepiece", franchiseName: "One Piece" },
+  YuGiOh: { apiValue: "yugioh", franchiseName: "Yu-Gi-Oh!" },
 };
 
-// Mapping per uniformare i Franchise e mappare i valori corretti per l'API
-const gameMapping: Record<string, { apiValue: string; franchiseName: string }> =
-  {
-    Pokemon: { apiValue: "pokemon", franchiseName: "Pokémon" },
-    PokemonJP: { apiValue: "pokemon", franchiseName: "Pokémon" },
-    "One Piece": { apiValue: "onepiece", franchiseName: "One Piece" },
-    YuGiOh: { apiValue: "yugioh", franchiseName: "Yu-Gi-Oh!" },
-  };
-
-const saveProductWithCategory = async (
-  card: any,
-  catName: string,
-  subCatName: string,
-) => {
-  const catSlug = createSlug(catName);
-  const subCatSlug = createSlug(subCatName);
-
-  // Otteniamo il nome reale del franchise e il valore api corretto
-  const franchiseInfo = gameMapping[subCatName] || {
+const saveCardProduct = async (card: any, subCatName: string) => {
+  const mappingInfo = gameMapping[subCatName] || {
     apiValue: "yugioh",
     franchiseName: subCatName,
   };
 
-  // Estraiamo in sicurezza il nome del set (visto che dall'API arriva come oggetto)
-  const setStringName = card.set?.name || "Unknown Set";
-
-  // Estraiamo il prezzo corretto dall'albero dei prezzi dell'API
+  const setName = card.set?.name || "Unknown Set";
   const marketPrice = card.prices?.raw?.near_mint?.tcgplayer?.market || 0;
-  const defaultStock = 10;
-  const computedPrice = Number(marketPrice);
+  const externalId = String(card.id);
 
   return await prisma.$transaction(async (tx) => {
-    // 1. Upsert Categoria (Nome campo aggiornato a nameCategory)
-    const category = await tx.category.upsert({
-      where: { slug: catSlug },
-      update: { nameCategory: catName },
-      create: { nameCategory: catName, slug: catSlug },
-    });
+    // Category fissa per tutte le carte, indipendentemente dal gioco
+    const category = await resolveCategory(tx, "carte", "Carte");
 
-    // 2. Upsert Sottocategoria (Usa la chiave composta aggiornata dallo schema)
-    const subCategory = await tx.subCategory.upsert({
+    // Franchise dinamico: se "Pokemon" non esiste ancora lo crea al volo
+    const franchise = await resolveFranchise(
+      tx,
+      subCatName,
+      "TCG_PRICE_LOOKUP",
+      mappingInfo.franchiseName,
+    );
+
+    // Product: upsert idempotente su externalId + source
+    const product = await tx.product.upsert({
       where: {
-        nameSubCategory_categoryId: {
-          nameSubCategory: subCatName,
-          categoryId: category.id,
+        externalId_externalSource: {
+          externalId,
+          externalSource: "TCG_PRICE_LOOKUP",
         },
       },
-      update: { nameSubCategory: subCatName },
+      update: {
+        price: Number(marketPrice),
+      },
       create: {
-        nameSubCategory: subCatName,
-        slug: subCatSlug,
+        sku: `CARD-${externalId}`,
+        name: `${card.name} (${card.number || "N/D"})`,
+        price: Number(marketPrice),
+        stock: 10,
+        isAvailable: true,
         categoryId: category.id,
+        franchiseId: franchise.id,
+        externalId,
+        externalSource: "TCG_PRICE_LOOKUP",
       },
     });
 
-    // 3. Upsert Franchise (Nome campo aggiornato a nameFranchise)
-    const franchise = await tx.franchise.upsert({
-      where: { slug: createSlug(franchiseInfo.franchiseName) },
-      update: { nameFranchise: franchiseInfo.franchiseName },
-      create: {
-        nameFranchise: franchiseInfo.franchiseName,
-        slug: createSlug(franchiseInfo.franchiseName),
-      },
-    });
-
-    // 4. Gestione Dati Specifici della Carta (Tabella Figlia indipendente)
-    const savedCard = await tx.card.upsert({
-      where: { externalId: card.id },
+    // Dettaglio carta: upsert su productId (la FK sta sulla tabella figlia)
+    await tx.card.upsert({
+      where: { productId: product.id },
       update: {
         number: card.number,
         rarity: card.rarity || "Common",
-        set: setStringName,
+        set: setName,
         variant: card.variant || "",
       },
       create: {
-        externalId: card.id,
+        productId: product.id,
         number: card.number,
         rarity: card.rarity || "Common",
-        set: setStringName,
+        set: setName,
         variant: card.variant || "",
       },
     });
 
-    // 5. Gestione Prodotto Generico (Verifica se esiste già agganciato a questa carta)
-    const existingProduct = await tx.product.findUnique({
-      where: { cardId: savedCard.id },
-    });
-
-    if (existingProduct) {
-      // Se esiste, aggiorna solo il prezzo di mercato
-      return await tx.product.update({
-        where: { id: existingProduct.id },
-        data: { price: computedPrice },
-      });
-    } else {
-      // Se è nuovo, crea il record prodotto completo collegando l'ID della carta appena salvata
-      return await tx.product.create({
-        data: {
-          name: `${card.name} (${card.number || "N/D"})`,
-          price: computedPrice,
-          stock: defaultStock,
-          isAvailable: defaultStock > 0,
-          type: "CARD",
-          subCategoryId: subCategory.id,
-          franchiseId: franchise.id,
-          cardId: savedCard.id, // Collegamento 1-a-1 invertito
-        },
-      });
-    }
+    return product;
   });
 };
 
-const performSync = async (
-  req: Request,
-  res: Response,
-  cat: string,
-  sub: string,
-) => {
+const performSync = async (req: Request, res: Response, sub: string) => {
   try {
     const { q, set, limit } = req.query;
 
     if (!q || typeof q !== "string" || q.trim() === "") {
       return res.status(400).json({
         error: true,
-        message:
-          "Richiesta non valida: il parametro di ricerca 'q' è obbligatorio nell'URL.",
+        message: "Richiesta non valida: il parametro 'q' è obbligatorio.",
       });
     }
 
@@ -153,10 +102,8 @@ const performSync = async (
     if (set) queryParams.set = String(set).trim();
     if (limit) queryParams.limit = String(limit).trim();
 
-    const params = new URLSearchParams(queryParams);
-
     const apiResponse = await fetch(
-      `https://api.tcgpricelookup.com/v1/cards/search?${params.toString()}`,
+      `https://api.tcgpricelookup.com/v1/cards/search?${new URLSearchParams(queryParams).toString()}`,
       { headers: { "X-API-Key": apiKey!, Accept: "application/json" } },
     );
 
@@ -167,28 +114,19 @@ const performSync = async (
     }
 
     for (const card of data.data) {
-      await saveProductWithCategory(card, cat, sub);
+      await saveCardProduct(card, sub);
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata con successo per ${sub} in ${cat}!`,
+      message: `Sincronizzazione completata con successo per ${sub}!`,
     });
   } catch (error: any) {
     res.status(500).json({ error: true, message: error.message });
   }
 };
 
-// Rotte esposte per la sincronizzazione delle card
-export const syncPokemon = async (req: Request, res: Response) => {
-  await performSync(req, res, "Carte", "Pokemon");
-};
-export const syncPokemonJp = async (req: Request, res: Response) => {
-  await performSync(req, res, "Carte", "PokemonJP");
-};
-export const syncOnePiece = async (req: Request, res: Response) => {
-  await performSync(req, res, "Carte", "One Piece");
-};
-export const syncYugioh = async (req: Request, res: Response) => {
-  await performSync(req, res, "Carte", "YuGiOh");
-};
+export const syncPokemon = (req: Request, res: Response) => performSync(req, res, "Pokemon");
+export const syncPokemonJp = (req: Request, res: Response) => performSync(req, res, "PokemonJP");
+export const syncOnePiece = (req: Request, res: Response) => performSync(req, res, "One Piece");
+export const syncYugioh = (req: Request, res: Response) => performSync(req, res, "YuGiOh");

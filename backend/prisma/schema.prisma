@@ -1,11 +1,24 @@
+// ============================================================
+// SCHEMA PRISMA — Catalogo multi-brand (fumetteria) v2
+// ============================================================
+// Category  = TIPO di prodotto (Carte, Manga, Funko, Giochi)
+// Franchise = BRAND trasversale (Pokemon, Naruto, One Piece)
+// Product   = tabella madre, pulita, senza colonne per-tipo
+// *Detail   = tabelle figlie con FK verso Product (non viceversa)
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
+// ------------------------------------------------------------
+// ⚠️ NON TOCCATA — esattamente come l'hai incollata
+// ------------------------------------------------------------
 
 enum Role {
   USER
@@ -23,105 +36,139 @@ model User {
   updatedAt DateTime @updatedAt
 }
 
+// ------------------------------------------------------------
+// CATEGORY — solo il tipo di prodotto, un livello (no SubCategory)
+// ------------------------------------------------------------
+
 model Category {
-  id            Int           @id @default(autoincrement())
-  nameCategory  String        @unique
-  slug          String        @unique
-  subCategories SubCategory[] // La categoria ha molte sottocategorie
-  createdAt     DateTime      @default(now())
+  id        Int       @id @default(autoincrement())
+  name      String    @unique // "Carte", "Manga", "Funko", "Giochi da Tavolo"
+  slug      String    @unique
+  products  Product[]
+  createdAt DateTime  @default(now())
 }
 
-model SubCategory {
-  id              Int         @id @default(autoincrement())
-  nameSubCategory String
-  slug            String      @unique
-  categoryId      Int
-  category        Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  products        Product[]   // La sottocategoria ha molti prodotti
-  createdAt       DateTime    @default(now())
-
-  @@unique([nameSubCategory, categoryId])
-}
+// ------------------------------------------------------------
+// FRANCHISE — il brand, trasversale a tutti i tipi
+// ------------------------------------------------------------
 
 model Franchise {
-  id            Int       @id @default(autoincrement())
-  nameFranchise String    @unique
-  slug          String    @unique
-  products      Product[]
-  createdAt     DateTime  @default(now())
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  slug      String           @unique
+  aliases   FranchiseAlias[]
+  products  Product[]
+  createdAt DateTime         @default(now())
 }
 
-// TABELLA MADRE: Centralizza tutto
+// Ogni API nomina i franchise in modo diverso: mappa qui la
+// stringa esatta ricevuta -> il Franchise canonico, prima
+// di creare/collegare il Product.
+model FranchiseAlias {
+  id          Int            @id @default(autoincrement())
+  alias       String
+  source      ExternalSource
+  franchiseId Int
+  franchise   Franchise      @relation(fields: [franchiseId], references: [id])
+
+  @@unique([alias, source])
+}
+
+enum ExternalSource {
+  TCG_PRICE_LOOKUP
+  JIKAN      // se in futuro passi a MyAnimeList/Jikan invece di AniList
+  ANILIST    // quella che usa il tuo mangaController attuale
+  BGG        // BoardGameGeek
+  MANUAL
+}
+
+// ------------------------------------------------------------
+// PRODUCT — tabella madre, SENZA colonne per-tipo
+// ------------------------------------------------------------
+
 model Product {
-  id            Int          @id @default(autoincrement())
-  name          String
-  price         Decimal      @db.Decimal(10, 2)
-  stock         Int          @default(0)
-  isAvailable   Boolean      @default(false)
-  type          String       // "CARD", "FUNKO", "MANGA", "BOARDGAME"
-  subCategoryId Int
-  subCategory   SubCategory  @relation(fields: [subCategoryId], references: [id], onDelete: Restrict)
-  franchiseId   Int
-  franchise     Franchise    @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
-  createdAt     DateTime     @default(now())
+  id             Int             @id @default(autoincrement())
+  sku            String          @unique
+  name           String
+  description    String?
+  images         String[]
+  price          Decimal         @db.Decimal(10, 2)
+  stock          Int             @default(0)
+  isAvailable    Boolean         @default(true) // ricalcolato a mano ad ogni write in base a stock
 
-  // Relazioni 1-a-1 opzionali verso i dettagli specifici
-  cardId        Int?         @unique
-  card          Card?        @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  
-  funkoPopId    Int?         @unique
-  funkoPop      FunkoPop?    @relation(fields: [funkoPopId], references: [id], onDelete: Cascade)
-  
-  mangaId       Int?         @unique
-  manga         Manga?       @relation(fields: [mangaId], references: [id], onDelete: Cascade)
+  categoryId     Int
+  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  // Relazione 1-a-1 per i Giochi da Tavolo
-  boardGameId   Int?         @unique
-  boardGame     BoardGame?   @relation(fields: [boardGameId], references: [id], onDelete: Cascade)
+  franchiseId    Int?            // opzionale: prodotti generici senza brand
+  franchise      Franchise?      @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
+
+  externalId     String?
+  externalSource ExternalSource?
+
+  card           Card?
+  funkoPop       FunkoPop?
+  manga          Manga?
+  boardGame      BoardGame?
+
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([externalId, externalSource]) // sync idempotente: ri-fetch senza duplicati
+  @@index([categoryId, franchiseId])     // query più frequente: "carte di One Piece"
 }
 
-// TABELLES FIGLIE: Contengono SOLO i campi extra del tipo specifico
+// ------------------------------------------------------------
+// DETTAGLI PER TIPO — FK unica verso Product (verso invertito
+// rispetto alla tua versione: la figlia punta alla madre)
+// ------------------------------------------------------------
+
 model Card {
-  id         Int      @id @default(autoincrement())
-  externalId String   @unique
-  number     String
-  rarity     String
-  set        String
-  variant    String
-  product    Product?
+  id        Int     @id @default(autoincrement())
+  productId Int     @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  number    String
+  rarity    String
+  set       String
+  variant   String
+
+  @@index([set])
 }
 
 model FunkoPop {
-  id               Int      @id @default(autoincrement())
+  id               Int     @id @default(autoincrement())
+  productId        Int     @unique
+  product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
   boxNumber        Int
-  isChase          Boolean  @default(false)
+  isChase          Boolean @default(false)
   stickerExclusive String?
-  product          Product?
 }
 
 model Manga {
   id           Int      @id @default(autoincrement())
-  externalId   Int      @unique  // ID univoco di MyAnimeList
-  volumeNumber Int
-  author       String
-  publisher    String
+  productId    Int      @unique
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  volume       Int?
+  authors      String[]
+  chapters     Int?
   synopsis     String?
-  imageUrl     String?
-  product      Product?
+  score        Float?
+  status       String?
 }
 
 model BoardGame {
-  id            Int      @id @default(autoincrement())
-  bggId         Int      @unique  // ID univoco di BoardGameGeek
-  description   String?  @db.Text // Descrizione completa
-  imageUrl      String?  // Copertina HD
-  thumbnailUrl  String?  // Miniatura
-  minPlayers    Int?     // Min giocatori
-  maxPlayers    Int?     // Max giocatori
-  playingTime   Int?     // Durata media
-  minPlayTime   Int?     // Durata minima
-  maxPlayTime   Int?     // Durata massima
-  minAge        Int?     // Età consigliata
-  yearPublished Int?     // Anno di rilascio
-  product       Product?
+  id            Int     @id @default(autoincrement())
+  productId     Int     @unique
+  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  description   String? @db.Text
+  minPlayers    Int?
+  maxPlayers    Int?
+  playingTime   Int?
+  minPlayTime   Int?
+  maxPlayTime   Int?
+  minAge        Int?
+  yearPublished Int?
 }
