@@ -96,6 +96,10 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  // --- FILTRI TEMPORANEI (solo per testare le relazioni del DB) ---
+  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [franchiseFilter, setFranchiseFilter] = useState<string>("ALL");
+
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -120,9 +124,61 @@ function App() {
   if (loading) return <div>Caricamento prodotti...</div>;
   if (error) return <div>Errore: {error}</div>;
 
+  // Liste uniche ricavate dai dati stessi, per popolare le select
+  const categories = Array.from(
+    new Set(products.map((p) => p.category.name)),
+  ).sort();
+  const franchises = Array.from(
+    new Set(products.filter((p) => p.franchise).map((p) => p.franchise!.name)),
+  ).sort();
+
+  const filtered = products.filter((p) => {
+    const matchCategory =
+      categoryFilter === "ALL" || p.category.name === categoryFilter;
+    const matchFranchise =
+      franchiseFilter === "ALL" || p.franchise?.name === franchiseFilter;
+    return matchCategory && matchFranchise;
+  });
+
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Catalogo completo ({products.length} prodotti)</h1>
+      <h1>
+        Catalogo completo ({filtered.length} / {products.length} prodotti)
+      </h1>
+
+      {/* --- BARRA FILTRI TEMPORANEA --- */}
+      <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
+        <label>
+          Categoria:{" "}
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="ALL">Tutte</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Franchise:{" "}
+          <select
+            value={franchiseFilter}
+            onChange={(e) => setFranchiseFilter(e.target.value)}
+          >
+            <option value="ALL">Tutti</option>
+            {franchises.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       <div
         style={{
           display: "grid",
@@ -130,7 +186,7 @@ function App() {
           gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
         }}
       >
-        {products.map((item) => (
+        {filtered.map((item) => (
           <div
             key={item.id}
             style={{

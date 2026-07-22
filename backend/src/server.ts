@@ -16,8 +16,8 @@ import cardRoutes from "./routes/cardRoutes.js";
 import boardGameRoutes from "./routes/boardGameRoutes.js";
 //fetch manga
 import mangaSyncRoutes from "./routes/mangaRoutes.js";
-
-
+//funkopop
+import funkoRoutes from "./routes/funkoRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5121;
 
@@ -39,7 +39,8 @@ app.use("/api/products-filter", productRoutes);
 app.use("/api/manga", mangaSyncRoutes);
 //fetch giochi da tavolo
 app.use("/api/boardgame", boardGameRoutes);
-
+//funko
+app.use("/api/funko", funkoRoutes);
 
 //query per testare il Backend acceso
 app.get("/", async (req: Request, res: Response) => {

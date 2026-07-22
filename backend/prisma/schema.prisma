@@ -76,9 +76,10 @@ model FranchiseAlias {
 
 enum ExternalSource {
   TCG_PRICE_LOOKUP
-  JIKAN      // se in futuro passi a MyAnimeList/Jikan invece di AniList
-  ANILIST    // quella che usa il tuo mangaController attuale
-  BGG        // BoardGameGeek
+  JIKAN          // se in futuro passi a MyAnimeList/Jikan invece di AniList
+  ANILIST        // quella che usa il tuo mangaController attuale
+  BGG            // BoardGameGeek
+  FUNKO_DATASET  // dataset open-source GitHub (kennymkchan/funko-pop-data)
   MANUAL
 }
 
@@ -140,7 +141,7 @@ model FunkoPop {
   productId        Int     @unique
   product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  boxNumber        Int
+  boxNumber        Int?
   isChase          Boolean @default(false)
   stickerExclusive String?
 }
