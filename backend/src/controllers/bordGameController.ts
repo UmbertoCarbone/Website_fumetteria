@@ -6,28 +6,47 @@ import { resolveCategory } from "../service/catalogSync.js";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
+// Chiamata diretta a BGG, nessun proxy: siamo un backend Node,
+// non un browser, quindi CORS non ci riguarda. Gestiamo anche il
+// caso in cui BGG risponde 202 (richiesta in coda, dati non pronti).
+const bggClient = axios.create({
+  headers: {
+    "User-Agent": "fumetteria-app/1.0 (contatto: tuo@email.it)",
+    Accept: "application/xml",
+  },
+  timeout: 15000,
+});
+
+async function fetchBggXml(url: string, retries = 3): Promise<any> {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    const response = await bggClient.get(url);
+
+    // BGG risponde 200 con un body vuoto/placeholder quando la
+    // richiesta è ancora "in coda" per il thing endpoint
+    if (
+      response.status === 202 ||
+      !response.data ||
+      response.data.trim() === ""
+    ) {
+      await delay(2000);
+      continue;
+    }
+
+    return parseStringPromise(response.data);
+  }
+  throw new Error("BGG non ha restituito dati validi dopo diversi tentativi");
+}
+
 export const syncBoardGames = async (req: Request, res: Response) => {
   const { q } = req.body;
   if (!q) return res.status(400).json({ error: "Campo 'q' obbligatorio." });
 
-  const proxyUrl = "https://corsproxy.io/?";
-  const client = axios.create({
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-      Accept: "application/xml",
-    },
-    timeout: 15000,
-  });
-
   try {
-    console.log(`[SYNC] Ricerca gioco tramite proxy: ${q}`);
+    console.log(`[SYNC] Ricerca gioco su BGG: ${q}`);
 
-    const searchUrl = encodeURIComponent(
-      `https://api.geekdo.com/xmlapi2/search?type=boardgame&query=${q}`,
+    const searchData = await fetchBggXml(
+      `https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=${encodeURIComponent(q)}`,
     );
-    const searchRes = await client.get(proxyUrl + searchUrl);
-    const searchData = await parseStringPromise(searchRes.data);
 
     if (!searchData.items?.item?.[0]) {
       return res.status(404).json({ error: "Gioco non trovato." });
@@ -35,23 +54,43 @@ export const syncBoardGames = async (req: Request, res: Response) => {
 
     const bggId = searchData.items.item[0].$.id;
 
-    await delay(2000);
+    // Piccola pausa di cortesia tra le due chiamate, per non
+    // sovraccaricare l'API pubblica
+    await delay(1500);
 
-    const detailUrl = encodeURIComponent(`https://api.geekdo.com/xmlapi2/thing?id=${bggId}`);
-    const detailRes = await client.get(proxyUrl + detailUrl);
-    const detailData = await parseStringPromise(detailRes.data);
+    const detailData = await fetchBggXml(
+      `https://boardgamegeek.com/xmlapi2/thing?id=${bggId}`,
+    );
     const item = detailData.items.item[0];
 
     const externalId = String(bggId);
     const name = item.name?.[0]?.$?.value || `Gioco #${bggId}`;
     const imageUrl = item.image?.[0] || null;
+    const thumbnailUrl = item.thumbnail?.[0] || null;
+
+    // BGG restituisce la descrizione con entità HTML codificate
+    // (es. &amp;#10; per gli a-capo) - le decodifichiamo per mostrarla pulita
+    const rawDescription = item.description?.[0] || "";
+    const cleanDescription = rawDescription
+      .replace(/&amp;/g, "&")
+      .replace(/&#10;/g, "\n")
+      .replace(/&#13;/g, "")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/<[^>]*>?/gm, "")
+      .trim();
+
+    // Fino a 2 immagini, stessa convenzione del Funko: [0] = principale, [1] = thumbnail
+    const images = [imageUrl, thumbnailUrl].filter((url): url is string =>
+      Boolean(url),
+    );
 
     const product = await prisma.$transaction(async (tx) => {
-      // Category fissa, i giochi da tavolo di solito non hanno un
-      // Franchise a meno che non siano licenze (es. gioco da tavolo di
-      // One Piece) — in quel caso aggiungeresti franchiseId come fai
-      // già per carte/manga.
-      const category = await resolveCategory(tx, "giochi-da-tavolo", "Giochi da Tavolo");
+      const category = await resolveCategory(
+        tx,
+        "giochi-da-tavolo",
+        "Giochi da Tavolo",
+      );
 
       const product = await tx.product.upsert({
         where: {
@@ -59,12 +98,14 @@ export const syncBoardGames = async (req: Request, res: Response) => {
         },
         update: {
           name,
-          images: imageUrl ? [imageUrl] : [],
+          description: cleanDescription || null,
+          images,
         },
         create: {
           sku: `BGG-${externalId}`,
           name,
-          images: imageUrl ? [imageUrl] : [],
+          description: cleanDescription || null,
+          images,
           price: 0,
           stock: 0,
           isAvailable: false,
@@ -77,14 +118,12 @@ export const syncBoardGames = async (req: Request, res: Response) => {
       await tx.boardGame.upsert({
         where: { productId: product.id },
         update: {
-          description: item.description?.[0] || "",
           minPlayers: parseInt(item.minplayers?.[0]?.$?.value || "0"),
           maxPlayers: parseInt(item.maxplayers?.[0]?.$?.value || "0"),
           yearPublished: parseInt(item.yearpublished?.[0]?.$?.value || "0"),
         },
         create: {
           productId: product.id,
-          description: item.description?.[0] || "",
           minPlayers: parseInt(item.minplayers?.[0]?.$?.value || "0"),
           maxPlayers: parseInt(item.maxplayers?.[0]?.$?.value || "0"),
           yearPublished: parseInt(item.yearpublished?.[0]?.$?.value || "0"),
@@ -98,8 +137,8 @@ export const syncBoardGames = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error("[ERRORE FINALE]:", error.message);
     res.status(500).json({
-      error: "Errore di connessione.",
-      details: "BGG continua a bloccare la richiesta. Prova ad usare l'hotspot del telefono.",
+      error: "Errore di connessione con BGG.",
+      details: error.message,
     });
   }
 };

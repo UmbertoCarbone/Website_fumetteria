@@ -164,7 +164,6 @@ model BoardGame {
   productId     Int     @unique
   product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  description   String? @db.Text
   minPlayers    Int?
   maxPlayers    Int?
   playingTime   Int?
