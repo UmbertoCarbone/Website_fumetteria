@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 import { resolveCategory, resolveFranchise } from "../service/catalogSync.js";
+import { sendError } from "../utils/httpErrors.js";
+import { cardSyncQuerySchema } from "../validators/syncValidator.js";
 
 // Mapping per uniformare i nomi dei giochi verso l'API e verso il Franchise canonico
 const gameMapping: Record<string, { apiValue: string; franchiseName: string }> = {
@@ -10,7 +12,21 @@ const gameMapping: Record<string, { apiValue: string; franchiseName: string }> =
   YuGiOh: { apiValue: "yugioh", franchiseName: "Yu-Gi-Oh!" },
 };
 
-const saveCardProduct = async (card: any, subCatName: string) => {
+// Forma (parziale) della risposta di tcgpricelookup.com usata da questo file
+interface TcgApiCard {
+  id: string | number;
+  name: string;
+  number?: string;
+  rarity?: string;
+  variant?: string;
+  image_url?: string | null;
+  set?: { name?: string };
+  prices?: {
+    raw?: { near_mint?: { tcgplayer?: { market?: number } } };
+  };
+}
+
+const saveCardProduct = async (card: TcgApiCard, subCatName: string) => {
   const mappingInfo = gameMapping[subCatName] || {
     apiValue: "yugioh",
     franchiseName: subCatName,
@@ -50,7 +66,6 @@ const saveCardProduct = async (card: any, subCatName: string) => {
         name: `${card.name} (${card.number || "N/D"})`,
         price: Number(marketPrice),
         stock: 10,
-        isAvailable: true,
         categoryId: category.id,
         franchiseId: franchise.id,
         externalId,
@@ -70,7 +85,7 @@ const saveCardProduct = async (card: any, subCatName: string) => {
       },
       create: {
         productId: product.id,
-        number: card.number,
+        number: card.number || "N/D",
         rarity: card.rarity || "Common",
         set: setName,
         variant: card.variant || "",
@@ -82,50 +97,76 @@ const saveCardProduct = async (card: any, subCatName: string) => {
 };
 
 const performSync = async (req: Request, res: Response, sub: string) => {
+  const validation = cardSyncQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return sendError(res, 400, "Parametri di ricerca non validi", {
+      errors: validation.error.format(),
+    });
+  }
+  const { q, set, limit } = validation.data;
+
+  const apiKey = process.env.CARD_API_KEY;
+  if (!apiKey) {
+    console.error("[CardController] CARD_API_KEY non configurata nel .env");
+    return sendError(res, 500, "Configurazione server incompleta: CARD_API_KEY mancante");
+  }
+
   try {
-    const { q, set, limit } = req.query;
-
-    if (!q || typeof q !== "string" || q.trim() === "") {
-      return res.status(400).json({
-        error: true,
-        message: "Richiesta non valida: il parametro 'q' è obbligatorio.",
-      });
-    }
-
-    const apiKey = process.env.CARD_API_KEY;
     const mappingInfo = gameMapping[sub] || {
       apiValue: "yugioh",
       franchiseName: "Yu-Gi-Oh!",
     };
 
     const queryParams: Record<string, string> = {
-      q: q.trim(),
+      q,
       game: mappingInfo.apiValue,
     };
-    if (set) queryParams.set = String(set).trim();
-    if (limit) queryParams.limit = String(limit).trim();
+    if (set) queryParams.set = set;
+    if (limit) queryParams.limit = limit;
 
     const apiResponse = await fetch(
       `https://api.tcgpricelookup.com/v1/cards/search?${new URLSearchParams(queryParams).toString()}`,
-      { headers: { "X-API-Key": apiKey!, Accept: "application/json" } },
+      { headers: { "X-API-Key": apiKey, Accept: "application/json" } },
     );
 
     const data = await apiResponse.json();
 
     if (!data.data) {
-      throw new Error(data.message || "Errore nel recupero dati dall'API");
+      return sendError(res, 502, data.message || "Errore nel recupero dati dall'API");
     }
 
+    // Ogni carta viene salvata singolarmente: se una fallisce non deve
+    // buttare via il lavoro già fatto sulle altre.
+    let saved = 0;
+    const failures: Array<{ id?: string; error: string }> = [];
     for (const card of data.data) {
-      await saveCardProduct(card, sub);
+      try {
+        await saveCardProduct(card, sub);
+        saved++;
+      } catch (err) {
+        failures.push({
+          id: card?.id !== undefined ? String(card.id) : undefined,
+          error: err instanceof Error ? err.message : "Errore sconosciuto",
+        });
+      }
+    }
+
+    if (saved === 0 && failures.length > 0) {
+      return res.status(502).json({
+        error: true,
+        message: "Nessuna carta sincronizzata",
+        failures,
+      });
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata con successo per ${sub}!`,
+      message: `Sincronizzazione completata per ${sub}: ${saved}/${data.data.length} carte salvate.`,
+      ...(failures.length > 0 && { failures }),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: true, message: error.message });
+  } catch (error) {
+    console.error("[CardController] Errore di sync:", error);
+    sendError(res, 500, error instanceof Error ? error.message : "Errore sconosciuto");
   }
 };
 

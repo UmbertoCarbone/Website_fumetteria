@@ -1,4 +1,10 @@
 import { ExternalSource } from "@prisma/client";
+import prisma from "../db/connection.js";
+
+// Il client Prisma è esteso (vedi db/connection.ts): il tipo del `tx` dentro
+// $transaction non è il Prisma.TransactionClient "di base", va derivato dal
+// client esteso stesso per restare compatibile con le sue chiamate.
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 // Crea uno slug url-friendly da un nome
 export const createSlug = (text: string) => {
@@ -13,7 +19,7 @@ export const createSlug = (text: string) => {
 // Trova o crea la Category (il "tipo" di prodotto: carte, manga...).
 // Va chiamata sempre con lo stesso slug fisso per ogni sync (es. "carte"),
 // non con un nome dinamico ricevuto dall'API.
-export async function resolveCategory(tx: any, slug: string, name: string) {
+export async function resolveCategory(tx: TxClient, slug: string, name: string) {
   return tx.category.upsert({
     where: { slug },
     update: {},
@@ -26,7 +32,7 @@ export async function resolveCategory(tx: any, slug: string, name: string) {
 // Franchise esistente. Altrimenti crea sia il Franchise (con nome
 // canonico, se fornito) sia l'alias, cosi la prossima volta lo riconosce.
 export async function resolveFranchise(
-  tx: any,
+  tx: TxClient,
   aliasText: string,
   source: ExternalSource,
   canonicalName?: string,

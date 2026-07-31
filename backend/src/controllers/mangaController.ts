@@ -1,8 +1,22 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
-import { resolveCategory, resolveFranchise } from "../service/catalogSync.js"
+import { resolveCategory, resolveFranchise } from "../service/catalogSync.js";
+import { sendError } from "../utils/httpErrors.js";
+import { mangaSyncQuerySchema } from "../validators/syncValidator.js";
 
-const saveMangaProduct = async (manga: any, franchiseTarget: string) => {
+// Forma (parziale) della risposta GraphQL di AniList usata da questo file
+interface AniListMangaResult {
+  id: string | number;
+  title: { userPreferred?: string; english?: string; romaji?: string };
+  description?: string | null;
+  volumes?: number | null;
+  coverImage?: { large?: string | null };
+  staff?: {
+    edges?: Array<{ role: string; node: { name: { full: string } } }>;
+  };
+}
+
+const saveMangaProduct = async (manga: AniListMangaResult, franchiseTarget: string) => {
   const externalId = String(manga.id);
   const title =
     manga.title.userPreferred ||
@@ -11,7 +25,7 @@ const saveMangaProduct = async (manga: any, franchiseTarget: string) => {
     "Manga senza titolo";
 
   const authorStaff = manga.staff?.edges?.find(
-    (edge: any) =>
+    (edge) =>
       edge.role.toLowerCase().includes("story") ||
       edge.role.toLowerCase().includes("art"),
   );
@@ -44,7 +58,6 @@ const saveMangaProduct = async (manga: any, franchiseTarget: string) => {
         images: coverUrl ? [coverUrl] : [],
         price: 5.2,
         stock: 10,
-        isAvailable: true,
         categoryId: category.id,
         franchiseId: franchise.id,
         externalId,
@@ -72,25 +85,15 @@ const saveMangaProduct = async (manga: any, franchiseTarget: string) => {
 };
 
 export const syncManga = async (req: Request, res: Response) => {
+  const validation = mangaSyncQuerySchema.safeParse(req.query);
+  if (!validation.success) {
+    return sendError(res, 400, "Parametri di ricerca non validi", {
+      errors: validation.error.format(),
+    });
+  }
+  const { q, franchise: franchiseTarget } = validation.data;
+
   try {
-    const { q, franchise } = req.query;
-
-    if (!q || typeof q !== "string" || q.trim() === "") {
-      return res.status(400).json({
-        error: true,
-        message: "Richiesta non valida: il parametro 'q' è obbligatorio.",
-      });
-    }
-
-    if (!franchise || typeof franchise !== "string" || franchise.trim() === "") {
-      return res.status(400).json({
-        error: true,
-        message: "Richiesta non valida: il parametro 'franchise' è obbligatorio.",
-      });
-    }
-
-    const franchiseTarget = franchise.trim();
-
     const query = `
       query ($search: String) {
         Page(perPage: 20) {
@@ -115,37 +118,51 @@ export const syncManga = async (req: Request, res: Response) => {
     const apiResponse = await fetch("https://graphql.anilist.co", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query, variables: { search: q.trim() } }),
+      body: JSON.stringify({ query, variables: { search: q } }),
     });
 
     if (!apiResponse.ok) {
-      return res.status(503).json({
-        error: true,
-        message: "Errore durante la comunicazione con i server di AniList.",
-      });
+      return sendError(res, 503, "Errore durante la comunicazione con i server di AniList.");
     }
 
     const result = await apiResponse.json();
     const mangaList = result.data?.Page?.media || [];
 
     if (mangaList.length === 0) {
-      return res.status(404).json({
-        error: true,
-        message: "Nessun manga trovato con questa query.",
-      });
+      return sendError(res, 404, "Nessun manga trovato con questa query.");
     }
 
-    let totalSaved = 0;
+    // Ogni volume viene salvato singolarmente: se uno fallisce non deve
+    // buttare via il lavoro già fatto sugli altri.
+    let saved = 0;
+    const failures: Array<{ id?: string; error: string }> = [];
     for (const manga of mangaList) {
-      await saveMangaProduct(manga, franchiseTarget);
-      totalSaved++;
+      try {
+        await saveMangaProduct(manga, franchiseTarget);
+        saved++;
+      } catch (err) {
+        failures.push({
+          id: manga?.id !== undefined ? String(manga.id) : undefined,
+          error: err instanceof Error ? err.message : "Errore sconosciuto",
+        });
+      }
+    }
+
+    if (saved === 0 && failures.length > 0) {
+      return res.status(502).json({
+        error: true,
+        message: "Nessun manga sincronizzato",
+        failures,
+      });
     }
 
     res.status(200).json({
       error: false,
-      message: `Sincronizzazione completata! Inseriti/aggiornati ${totalSaved} volumi per "${franchiseTarget}".`,
+      message: `Sincronizzazione completata! Inseriti/aggiornati ${saved}/${mangaList.length} volumi per "${franchiseTarget}".`,
+      ...(failures.length > 0 && { failures }),
     });
-  } catch (error: any) {
-    res.status(500).json({ error: true, message: error.message });
+  } catch (error) {
+    console.error("[mangaController] Errore di sync:", error);
+    sendError(res, 500, error instanceof Error ? error.message : "Errore sconosciuto");
   }
 };

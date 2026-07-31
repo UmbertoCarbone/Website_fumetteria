@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { Prisma } from "@prisma/client";
 import prisma from "../db/connection.js";
 import { registerSchema, loginSchema } from "../validators/authValidator.js";
 
@@ -58,6 +59,17 @@ export const register = async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
+    // Race condition: due registrazioni simultanee con la stessa email/username
+    // possono entrambe superare il controllo di esistenza e scontrarsi sul
+    // vincolo unique in fase di create.
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return res
+        .status(409)
+        .json({ error: true, message: "Email o Username già utilizzati" });
+    }
     console.error("[Register Error]:", error);
     return res.status(500).json({
       error: true,

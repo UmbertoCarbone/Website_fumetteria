@@ -1,8 +1,10 @@
 import express from "express";
 import { getAllUsers } from "../controllers/userController.js";
+import { authenticate, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.get("/", getAllUsers);
+// Elenca email/username/ruolo di tutti gli utenti: solo per lo staff.
+router.get("/", authenticate, authorize("ADMIN", "SUPERADMIN"), getAllUsers);
 
 export default router;

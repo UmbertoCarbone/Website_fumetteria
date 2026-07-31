@@ -3,6 +3,8 @@ import prisma from "../db/connection.js";
 import axios from "axios";
 import { parseStringPromise } from "xml2js";
 import { resolveCategory } from "../service/catalogSync.js";
+import { sendError } from "../utils/httpErrors.js";
+import { boardGameSyncBodySchema } from "../validators/syncValidator.js";
 
 const delay = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
@@ -38,8 +40,13 @@ async function fetchBggXml(url: string, retries = 3): Promise<any> {
 }
 
 export const syncBoardGames = async (req: Request, res: Response) => {
-  const { q } = req.body;
-  if (!q) return res.status(400).json({ error: "Campo 'q' obbligatorio." });
+  const validation = boardGameSyncBodySchema.safeParse(req.body);
+  if (!validation.success) {
+    return sendError(res, 400, "Parametri di ricerca non validi", {
+      errors: validation.error.format(),
+    });
+  }
+  const { q } = validation.data;
 
   try {
     console.log(`[SYNC] Ricerca gioco su BGG: ${q}`);
@@ -49,7 +56,7 @@ export const syncBoardGames = async (req: Request, res: Response) => {
     );
 
     if (!searchData.items?.item?.[0]) {
-      return res.status(404).json({ error: "Gioco non trovato." });
+      return sendError(res, 404, "Gioco non trovato.");
     }
 
     const bggId = searchData.items.item[0].$.id;
@@ -108,7 +115,6 @@ export const syncBoardGames = async (req: Request, res: Response) => {
           images,
           price: 0,
           stock: 0,
-          isAvailable: false,
           categoryId: category.id,
           externalId,
           externalSource: "BGG",
@@ -133,12 +139,14 @@ export const syncBoardGames = async (req: Request, res: Response) => {
       return product;
     });
 
-    res.json({ message: "Successo! Dati sincronizzati.", data: product });
-  } catch (error: any) {
-    console.error("[ERRORE FINALE]:", error.message);
-    res.status(500).json({
-      error: "Errore di connessione con BGG.",
-      details: error.message,
-    });
+    res.status(200).json({ message: "Successo! Dati sincronizzati.", data: product });
+  } catch (error) {
+    console.error("[ERRORE FINALE]:", error);
+    sendError(
+      res,
+      502,
+      "Errore di connessione con BGG.",
+      { details: error instanceof Error ? error.message : "Errore sconosciuto" },
+    );
   }
 };

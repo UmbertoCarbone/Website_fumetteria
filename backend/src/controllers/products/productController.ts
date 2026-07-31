@@ -4,6 +4,18 @@ import {
   resolveCategory,
   resolveFranchise,
 } from "../../service/catalogSync.js";
+import { sendError, handleControllerError, NotFoundError } from "../../utils/httpErrors.js";
+import { parseId } from "../../utils/parseId.js";
+import { createProductSchema, updateProductSchema } from "../../validators/productValidator.js";
+
+const productInclude = {
+  category: true,
+  franchise: true,
+  card: true,
+  funkoPop: true,
+  manga: true,
+  boardGame: true,
+};
 
 // ------------------------------------------------------------
 // 1. GET / — Recupera tutti i prodotti
@@ -11,19 +23,12 @@ import {
 export const getProducts = async (req: Request, res: Response) => {
   try {
     const products = await prisma.product.findMany({
-      include: {
-        category: true,
-        franchise: true,
-        card: true,
-        funkoPop: true,
-        manga: true,
-        boardGame: true,
-      },
+      include: productInclude,
       orderBy: { createdAt: "desc" },
     });
     res.status(200).json(products);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    handleControllerError(res, error);
   }
 };
 
@@ -31,24 +36,18 @@ export const getProducts = async (req: Request, res: Response) => {
 // 2. GET /:id
 // ------------------------------------------------------------
 export const getProductById = async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, "id non valido");
+
   try {
-    const { id } = req.params;
     const product = await prisma.product.findUnique({
-      where: { id: Number(id) },
-      include: {
-        category: true,
-        franchise: true,
-        card: true,
-        funkoPop: true,
-        manga: true,
-        boardGame: true,
-      },
+      where: { id },
+      include: productInclude,
     });
-    if (!product)
-      return res.status(404).json({ error: "Prodotto non trovato" });
+    if (!product) return sendError(res, 404, "Prodotto non trovato");
     res.status(200).json(product);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    handleControllerError(res, error);
   }
 };
 
@@ -58,92 +57,68 @@ export const getProductById = async (req: Request, res: Response) => {
 //    non da un campo "type" separato da tenere sincronizzato a mano.
 // ------------------------------------------------------------
 export const createProduct = async (req: Request, res: Response) => {
+  const validation = createProductSchema.safeParse(req.body);
+  if (!validation.success) {
+    return sendError(res, 400, "Dati prodotto non validi", {
+      errors: validation.error.format(),
+    });
+  }
+  const data = validation.data;
+
   try {
-    const {
-      sku,
-      name,
-      description,
-      images,
-      price,
-      stock,
-      categoryName, // es. "Carte", "Manga", "Funko", "Giochi da Tavolo"
-      franchiseName, // opzionale: prodotti generici senza brand
-      cardDetails,
-      funkoDetails,
-      mangaDetails,
-      boardGameDetails,
-    } = req.body;
-
-    if (!name || !categoryName) {
-      return res
-        .status(400)
-        .json({ error: "name e categoryName sono obbligatori" });
-    }
-
-    const parsedStock = parseInt(stock?.toString() || "0", 10);
-    const productPrice = parseFloat(price?.toString().replace(",", ".") || "0");
-    const productSku = sku || `MANUAL-${Date.now()}`;
+    const productSku = data.sku || `MANUAL-${Date.now()}`;
 
     const newProduct = await prisma.$transaction(async (tx) => {
       const category = await resolveCategory(
         tx,
-        categoryName.toLowerCase().trim().replace(/\s+/g, "-"),
-        categoryName,
+        data.categoryName.toLowerCase().trim().replace(/\s+/g, "-"),
+        data.categoryName,
       );
 
-      const franchise = franchiseName
-        ? await resolveFranchise(tx, franchiseName, "MANUAL", franchiseName)
+      const franchise = data.franchiseName
+        ? await resolveFranchise(tx, data.franchiseName, "MANUAL", data.franchiseName)
         : null;
 
       const product = await tx.product.create({
         data: {
           sku: productSku,
-          name,
-          description: description || null,
-          images: images || [],
-          price: productPrice,
-          stock: parsedStock,
-          isAvailable: parsedStock > 0,
+          name: data.name,
+          description: data.description ?? null,
+          images: data.images,
+          price: data.price,
+          stock: data.stock,
           categoryId: category.id,
           franchiseId: franchise?.id ?? null,
         },
       });
 
-      // Crea il dettaglio giusto in base a quale oggetto è arrivato nel body
-      if (cardDetails) {
+      if (data.cardDetails) {
         await tx.card.create({
-          data: { ...cardDetails, productId: product.id },
+          data: { ...data.cardDetails, productId: product.id },
         });
-      } else if (funkoDetails) {
+      } else if (data.funkoDetails) {
         await tx.funkoPop.create({
-          data: { ...funkoDetails, productId: product.id },
+          data: { ...data.funkoDetails, productId: product.id },
         });
-      } else if (mangaDetails) {
+      } else if (data.mangaDetails) {
         await tx.manga.create({
-          data: { ...mangaDetails, productId: product.id },
+          data: { ...data.mangaDetails, productId: product.id },
         });
-      } else if (boardGameDetails) {
+      } else if (data.boardGameDetails) {
         await tx.boardGame.create({
-          data: { ...boardGameDetails, productId: product.id },
+          data: { ...data.boardGameDetails, productId: product.id },
         });
       }
 
-      return tx.product.findUnique({
+      return tx.product.findUniqueOrThrow({
         where: { id: product.id },
-        include: {
-          category: true,
-          franchise: true,
-          card: true,
-          funkoPop: true,
-          manga: true,
-          boardGame: true,
-        },
+        include: productInclude,
       });
     });
 
     res.status(201).json({ message: "Prodotto creato!", product: newProduct });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    handleControllerError(res, error);
   }
 };
 
@@ -151,84 +126,74 @@ export const createProduct = async (req: Request, res: Response) => {
 // 4. PATCH /:id — Aggiorna prodotto e/o il suo dettaglio
 // ------------------------------------------------------------
 export const updateProduct = async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, "id non valido");
+
+  const validation = updateProductSchema.safeParse(req.body);
+  if (!validation.success) {
+    return sendError(res, 400, "Dati prodotto non validi", {
+      errors: validation.error.format(),
+    });
+  }
+  const data = validation.data;
+
   try {
-    const { id } = req.params;
-    const productId = Number(id);
-    const {
-      name,
-      description,
-      images,
-      price,
-      stock,
-      cardDetails,
-      funkoDetails,
-      mangaDetails,
-      boardGameDetails,
-    } = req.body;
-
     const updated = await prisma.$transaction(async (tx) => {
-      const prod = await tx.product.findUnique({ where: { id: productId } });
-      if (!prod) throw new Error("Prodotto non trovato");
+      const prod = await tx.product.findUnique({ where: { id } });
+      if (!prod) throw new NotFoundError("Prodotto non trovato");
 
-      // upsert sul dettaglio: aggiorna se esiste già, lo crea se il
-      // prodotto non ne aveva ancora uno (es. stavi popolando dati a fasi)
-      if (cardDetails) {
+      if (data.cardDetails) {
+        const cardDetails = data.cardDetails;
         await tx.card.upsert({
-          where: { productId },
+          where: { productId: id },
           update: cardDetails,
-          create: { ...cardDetails, productId },
+          create: {
+            productId: id,
+            number: cardDetails.number ?? "",
+            rarity: cardDetails.rarity ?? "Common",
+            set: cardDetails.set ?? "",
+            variant: cardDetails.variant ?? "",
+          },
         });
       }
-      if (funkoDetails) {
+      if (data.funkoDetails) {
         await tx.funkoPop.upsert({
-          where: { productId },
-          update: funkoDetails,
-          create: { ...funkoDetails, productId },
+          where: { productId: id },
+          update: data.funkoDetails,
+          create: { ...data.funkoDetails, productId: id },
         });
       }
-      if (mangaDetails) {
+      if (data.mangaDetails) {
         await tx.manga.upsert({
-          where: { productId },
-          update: mangaDetails,
-          create: { ...mangaDetails, productId },
+          where: { productId: id },
+          update: data.mangaDetails,
+          create: { ...data.mangaDetails, productId: id },
         });
       }
-      if (boardGameDetails) {
+      if (data.boardGameDetails) {
         await tx.boardGame.upsert({
-          where: { productId },
-          update: boardGameDetails,
-          create: { ...boardGameDetails, productId },
+          where: { productId: id },
+          update: data.boardGameDetails,
+          create: { ...data.boardGameDetails, productId: id },
         });
       }
 
       return tx.product.update({
-        where: { id: productId },
+        where: { id },
         data: {
-          ...(name && { name }),
-          ...(description !== undefined && { description }),
-          ...(images && { images }),
-          ...(price !== undefined && {
-            price: parseFloat(price.toString().replace(",", ".")),
-          }),
-          ...(stock !== undefined && {
-            stock: parseInt(stock),
-            isAvailable: parseInt(stock) > 0,
-          }),
+          ...(data.name !== undefined && { name: data.name }),
+          ...(data.description !== undefined && { description: data.description }),
+          ...(data.images !== undefined && { images: data.images }),
+          ...(data.price !== undefined && { price: data.price }),
+          ...(data.stock !== undefined && { stock: data.stock }),
         },
-        include: {
-          category: true,
-          franchise: true,
-          card: true,
-          funkoPop: true,
-          manga: true,
-          boardGame: true,
-        },
+        include: productInclude,
       });
     });
 
     res.status(200).json(updated);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    handleControllerError(res, error, "Prodotto non trovato");
   }
 };
 
@@ -238,10 +203,13 @@ export const updateProduct = async (req: Request, res: Response) => {
 //    automatico grazie a onDelete: Cascade nello schema.
 // ------------------------------------------------------------
 export const deleteProduct = async (req: Request, res: Response) => {
+  const id = parseId(req.params.id);
+  if (id === null) return sendError(res, 400, "id non valido");
+
   try {
-    await prisma.product.delete({ where: { id: Number(req.params.id) } });
+    await prisma.product.delete({ where: { id } });
     res.status(200).json({ message: "Prodotto eliminato" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
+  } catch (error) {
+    handleControllerError(res, error, "Prodotto non trovato");
   }
 };
