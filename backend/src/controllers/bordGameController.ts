@@ -19,9 +19,11 @@ const bggClient = axios.create({
   timeout: 15000,
 });
 
-async function fetchBggXml(url: string, retries = 3): Promise<any> {
+async function fetchBggXml(url: string, token: string, retries = 3): Promise<any> {
   for (let attempt = 0; attempt < retries; attempt++) {
-    const response = await bggClient.get(url);
+    const response = await bggClient.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     // BGG risponde 200 con un body vuoto/placeholder quando la
     // richiesta è ancora "in coda" per il thing endpoint
@@ -48,11 +50,20 @@ export const syncBoardGames = async (req: Request, res: Response) => {
   }
   const { q } = validation.data;
 
+  // BGG richiede un Application Bearer Token (registrato su
+  // boardgamegeek.com/application) per usare l'XML API.
+  const token = process.env.BOARDGAME_API_KEY;
+  if (!token) {
+    console.error("[bordGameController] BOARDGAME_API_KEY non configurata nel .env");
+    return sendError(res, 500, "Configurazione server incompleta: BOARDGAME_API_KEY mancante");
+  }
+
   try {
     console.log(`[SYNC] Ricerca gioco su BGG: ${q}`);
 
     const searchData = await fetchBggXml(
       `https://boardgamegeek.com/xmlapi2/search?type=boardgame&query=${encodeURIComponent(q)}`,
+      token,
     );
 
     if (!searchData.items?.item?.[0]) {
@@ -67,6 +78,7 @@ export const syncBoardGames = async (req: Request, res: Response) => {
 
     const detailData = await fetchBggXml(
       `https://boardgamegeek.com/xmlapi2/thing?id=${bggId}`,
+      token,
     );
     const item = detailData.items.item[0];
 

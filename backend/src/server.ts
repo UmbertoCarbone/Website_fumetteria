@@ -14,8 +14,6 @@ import productRoutes from "./routes/productRoutes.js";
 import cardRoutes from "./routes/cardRoutes.js";
 //fetch giochi da tavolo
 import boardGameRoutes from "./routes/boardGameRoutes.js";
-//fetch manga
-import mangaSyncRoutes from "./routes/mangaRoutes.js";
 //funkopop
 import funkoRoutes from "./routes/funkoRoutes.js";
 const app = express();
@@ -35,8 +33,6 @@ app.use("/api/users", userRoutes);
 app.use("/api/products", productRoutes);
 //import da apikey per carte
 app.use("/api/cards", cardRoutes);
-//fetch manga
-app.use("/api/manga", mangaSyncRoutes);
 //fetch giochi da tavolo
 app.use("/api/boardgame", boardGameRoutes);
 //funko

@@ -13,11 +13,6 @@ export const cardSyncQuerySchema = z.object({
   limit: z.string().trim().optional(),
 });
 
-export const mangaSyncQuerySchema = z.object({
-  q: nonEmptyQueryString("q"),
-  franchise: nonEmptyQueryString("franchise"),
-});
-
 export const boardGameSyncBodySchema = z.object({
   q: nonEmptyQueryString("q"),
 });

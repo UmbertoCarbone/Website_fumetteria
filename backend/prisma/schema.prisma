@@ -77,7 +77,8 @@ model FranchiseAlias {
 enum ExternalSource {
   TCG_PRICE_LOOKUP
   JIKAN          // se in futuro passi a MyAnimeList/Jikan invece di AniList
-  ANILIST        // quella che usa il tuo mangaController attuale
+  ANILIST        // non più usata da mangaController (sostituita da MANGADEX), lasciata per lo storico
+  MANGADEX       // fonte manga per-volume: numero volumi reale + copertina per singolo volume
   BGG            // BoardGameGeek
   FUNKO_DATASET  // dataset open-source GitHub (kennymkchan/funko-pop-data)
   MANUAL
