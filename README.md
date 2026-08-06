@@ -84,4 +84,13 @@ _I dati vengono recuperati tramite l'XML API di [BoardGameGeek](https://boardgam
 | :--- | :--- | :--- |
 | `POST` | `/api/boardgame/sync` | 🔒 Ricerca e sincronizzazione gioco da tavolo (body: `{ "q": "catan" }`) |
 
+<br>
+
+### 🧱 Sincronizzazione API Esterne (Lego)
+_I dati di catalogo (nome, immagine, tema, pezzi, minifig) vengono recuperati da [Rebrickable](https://rebrickable.com/api/v3/docs/). Nessun dato di prezzo: il prezzo viene impostato manualmente dallo staff, come per i giochi da tavolo. Rotta riservata allo staff (ADMIN/SUPERADMIN)._
+
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `POST` | `/api/lego/sync` | 🔒 Ricerca e sincronizzazione set Lego (body: `{ "q": "millennium falcon" }`) |
+
 ---

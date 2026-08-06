@@ -16,6 +16,8 @@ import cardRoutes from "./routes/cardRoutes.js";
 import boardGameRoutes from "./routes/boardGameRoutes.js";
 //funkopop
 import funkoRoutes from "./routes/funkoRoutes.js";
+//set lego
+import legoRoutes from "./routes/legoRoutes.js";
 const app = express();
 const PORT = process.env.PORT || 5121;
 
@@ -37,6 +39,8 @@ app.use("/api/cards", cardRoutes);
 app.use("/api/boardgame", boardGameRoutes);
 //funko
 app.use("/api/funko", funkoRoutes);
+//set lego
+app.use("/api/lego", legoRoutes);
 
 //query per testare il Backend acceso
 app.get("/", async (req: Request, res: Response) => {

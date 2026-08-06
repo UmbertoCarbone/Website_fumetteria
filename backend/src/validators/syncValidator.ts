@@ -16,3 +16,7 @@ export const cardSyncQuerySchema = z.object({
 export const boardGameSyncBodySchema = z.object({
   q: nonEmptyQueryString("q"),
 });
+
+export const legoSyncBodySchema = z.object({
+  q: nonEmptyQueryString("q"),
+});

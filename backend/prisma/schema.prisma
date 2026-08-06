@@ -81,6 +81,7 @@ enum ExternalSource {
   MANGADEX       // fonte manga per-volume: numero volumi reale + copertina per singolo volume
   BGG            // BoardGameGeek
   FUNKO_DATASET  // dataset open-source GitHub (kennymkchan/funko-pop-data)
+  REBRICKABLE    // catalogo set Lego (rebrickable.com)
   MANUAL
 }
 
@@ -111,6 +112,7 @@ model Product {
   funkoPop       FunkoPop?
   manga          Manga?
   boardGame      BoardGame?
+  legoSet        LegoSet?
 
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -172,4 +174,18 @@ model BoardGame {
   maxPlayTime   Int?
   minAge        Int?
   yearPublished Int?
+}
+
+// Tabella dedicata (non dentro BoardGame): i set Lego non sono giochi da
+// tavolo, hanno attributi propri (pezzi, minifig, tema) e vanno interrogati
+// come catalogo a parte per la futura single page prodotto.
+model LegoSet {
+  id           Int     @id @default(autoincrement())
+  productId    Int     @unique
+  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  theme        String?
+  pieceCount   Int?
+  minifigCount Int?
+  yearReleased Int?
 }
