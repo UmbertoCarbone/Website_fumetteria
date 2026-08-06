@@ -1,26 +1,62 @@
 <mxfile host="65bd71144e">
     <diagram id="qw9WNsKjJ3Jg70u_zt3O" name="Pagina-2">
-        <mxGraphModel dx="3997" dy="21814" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="964" dy="461" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-1" value="CATEGORY&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameCategory: VARCHAR&#xa;slug: VARCHAR&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1770" y="-21020" width="220" height="140" as="geometry"/>
+                <mxCell id="ERD-user" value="USER&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;email: VARCHAR (UNIQUE)&#xa;username: VARCHAR (UNIQUE)&#xa;password: VARCHAR&#xa;role: ENUM(Role) = USER&#xa;createdAt: TIMESTAMP&#xa;updatedAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="40" width="220" height="200" as="geometry"/>
                 </mxCell>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-2" value="SUBCATEGORY&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameSubCategory: VARCHAR&#xa;slug: VARCHAR&#xa;[FK] categoryId: INT&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1770" y="-20830" width="220" height="160" as="geometry"/>
+                <mxCell id="ERD-category" value="CATEGORY&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR (UNIQUE)&#xa;slug: VARCHAR (UNIQUE)&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="320" y="40" width="220" height="140" as="geometry"/>
                 </mxCell>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-3" value="FRANCHISE&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;nameFranchise: VARCHAR&#xa;slug: VARCHAR&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1410" y="-21020" width="220" height="140" as="geometry"/>
+                <mxCell id="ERD-franchise" value="FRANCHISE&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR (UNIQUE)&#xa;slug: VARCHAR (UNIQUE)&#xa;createdAt: TIMESTAMP" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="40" width="220" height="140" as="geometry"/>
                 </mxCell>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-4" value="CARD (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;externalId: VARCHAR&#xa;number: VARCHAR&#xa;rarity: VARCHAR&#xa;set: VARCHAR&#xa;variant: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1830" y="-20610" width="220" height="280" as="geometry"/>
+                <mxCell id="ERD-franchisealias" value="FRANCHISE_ALIAS&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;alias: VARCHAR&#xa;source: ENUM(ExternalSource)&#xa;[FK] franchiseId: INT&#xa;UNIQUE(alias, source)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="880" y="40" width="240" height="160" as="geometry"/>
                 </mxCell>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-5" value="FUNKO POP (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;boxNumber: INT&#xa;isChase: BOOLEAN&#xa;stickerExclusive: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1570" y="-20610" width="220" height="260" as="geometry"/>
+                <mxCell id="ERD-role-enum" value="ENUM: Role&#xa;---------------------&#xa;USER&#xa;ADMIN&#xa;SUPERADMIN" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="1180" y="40" width="200" height="120" as="geometry"/>
                 </mxCell>
-                <mxCell id="pNP7yE_c4QTw9cZbjFBs-6" value="MANGA (Dedicata)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;name: VARCHAR&#xa;price: DECIMAL&#xa;stock: INT&#xa;isAvailable: BOOLEAN&#xa;volumeNumber: INT&#xa;author: VARCHAR&#xa;publisher: VARCHAR&#xa;[FK] subCategoryId: INT&#xa;[FK] franchiseId: INT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
-                    <mxGeometry x="-1310" y="-20610" width="220" height="260" as="geometry"/>
+                <mxCell id="ERD-source-enum" value="ENUM: ExternalSource&#xa;---------------------&#xa;TCG_PRICE_LOOKUP&#xa;JIKAN&#xa;ANILIST&#xa;MANGADEX&#xa;BGG&#xa;FUNKO_DATASET&#xa;MANUAL" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="1180" y="200" width="200" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-product" value="PRODUCT (tabella madre)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;sku: VARCHAR (UNIQUE)&#xa;name: VARCHAR&#xa;description: VARCHAR?&#xa;images: VARCHAR[]&#xa;price: DECIMAL(10,2)&#xa;stock: INT = 0&#xa;isAvailable: BOOLEAN = true&#xa;[FK] categoryId: INT&#xa;[FK] franchiseId: INT?&#xa;externalId: VARCHAR?&#xa;externalSource: ENUM(ExternalSource)?&#xa;createdAt: TIMESTAMP&#xa;updatedAt: TIMESTAMP&#xa;UNIQUE(externalId, externalSource)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="280" width="260" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-card" value="CARD (Dettaglio)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;[FK] productId: INT (UNIQUE)&#xa;number: VARCHAR&#xa;rarity: VARCHAR&#xa;set: VARCHAR&#xa;variant: VARCHAR" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="760" width="220" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-funkopop" value="FUNKO_POP (Dettaglio)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;[FK] productId: INT (UNIQUE)&#xa;boxNumber: INT?&#xa;isChase: BOOLEAN = false&#xa;stickerExclusive: VARCHAR?" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="320" y="760" width="220" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-manga" value="MANGA (Dettaglio)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;[FK] productId: INT (UNIQUE)&#xa;volume: INT?&#xa;authors: VARCHAR[]&#xa;chapters: INT?&#xa;synopsis: VARCHAR?&#xa;score: FLOAT?&#xa;status: VARCHAR?" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="600" y="760" width="220" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-boardgame" value="BOARD_GAME (Dettaglio)&#xa;---------------------&#xa;[PK] id: INT (AI)&#xa;[FK] productId: INT (UNIQUE)&#xa;minPlayers: INT?&#xa;maxPlayers: INT?&#xa;playingTime: INT?&#xa;minPlayTime: INT?&#xa;maxPlayTime: INT?&#xa;minAge: INT?&#xa;yearPublished: INT?" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;spacingTop=10;" vertex="1" parent="1">
+                    <mxGeometry x="880" y="760" width="240" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-cat-product" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ERD-category" target="ERD-product">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-fr-product" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="ERD-franchise" target="ERD-product">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-fr-alias" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERmany;endFill=0;" edge="1" parent="1" source="ERD-franchise" target="ERD-franchisealias">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-product-card" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;exitX=0.25;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="ERD-product" target="ERD-card">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-product-funko" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;exitX=0.4;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="ERD-product" target="ERD-funkopop">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-product-manga" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;exitX=0.6;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="ERD-product" target="ERD-manga">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="ERD-edge-product-boardgame" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;exitX=0.75;exitY=1;exitDx=0;exitDy=0;" edge="1" parent="1" source="ERD-product" target="ERD-boardgame">
+                    <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>

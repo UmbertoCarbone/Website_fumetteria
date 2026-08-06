@@ -37,7 +37,7 @@ Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione i
 | :--- | :--- | :--- |
 | `POST` | `/api/auth/register` | Registrazione Nuovo Utente |
 | `POST` | `/api/auth/login` | Login utente & Generazione Token JWT |
-| `GET` | `/api/users` | Recupero lista utenti registrati |
+| `GET` | `/api/users` | 🔒 Recupero lista utenti registrati (solo ADMIN/SUPERADMIN) |
 
 <br>
 
@@ -47,43 +47,41 @@ Progetto **Full-Stack** orientato alle prestazioni. Sviluppato per la gestione i
 | :--- | :--- | :--- |
 | `GET` | `/api/products` | Recupero lista completa di tutti i prodotti (con relazioni) |
 | `GET` | `/api/products/:id` | Recupero dettaglio singolo prodotto tramite ID |
-| `POST` | `/api/products` | Creazione nuovo prodotto (con auto-upsert di Categoria/Sottocategoria) |
-| `PATCH` | `/api/products/:id` | Modifica parziale di un prodotto (es. variazioni stock/prezzo) |
-| `DELETE` | `/api/products/:id` | Eliminazione definitiva di un prodotto dal catalogo |
+| `POST` | `/api/products` | 🔒 Creazione nuovo prodotto (con auto-upsert di Categoria/Sottocategoria) |
+| `PATCH` | `/api/products/:id` | 🔒 Modifica parziale di un prodotto (es. variazioni stock/prezzo) |
+| `DELETE` | `/api/products/:id` | 🔒 Eliminazione definitiva di un prodotto dal catalogo |
+
+<br>
+
+### 🧸 Gestione Funko Pop
+
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `GET` | `/api/funko` | Recupero lista completa dei Funko Pop |
+| `GET` | `/api/funko/:id` | Recupero dettaglio singolo Funko Pop tramite ID |
+| `POST` | `/api/funko` | 🔒 Creazione nuovo Funko Pop |
+| `PATCH` | `/api/funko/:id` | 🔒 Modifica parziale di un Funko Pop |
+| `DELETE` | `/api/funko/:id` | 🔒 Eliminazione definitiva di un Funko Pop |
 
 <br>
 
 ### 🔄 Sincronizzazione API Esterne (Card Games)
-_I dati di quotazione e catalogo vengono sincronizzati integrando i servizi di [TCG Price Lookup](https://tcgpricelookup.com/)._
+_I dati di quotazione e catalogo vengono sincronizzati integrando i servizi di [TCG Price Lookup](https://tcgpricelookup.com/). Rotte riservate allo staff (ADMIN/SUPERADMIN)._
 
 | Metodo | Endpoint | Descrizione |
 | :--- | :--- | :--- |
-| `GET` | `/api/cards/sync/pokemon` | Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
-| `GET` | `/api/cards/sync/yugioh` | Sincronizzazione TCG Yu-Gi-Oh! (Es: `?limit=1&q=golem`) |
-| `GET` | `/api/cards/sync/onepiece` | Sincronizzazione TCG One Piece (Es: `?limit=1&q=luffy`) |
+| `POST` | `/api/cards/sync/pokemon` | 🔒 Sincronizzazione TCG Pokémon (Es: `?limit=1&q=wartortle`) |
+| `POST` | `/api/cards/sync/pokemon-jp` | 🔒 Sincronizzazione TCG Pokémon (set giapponesi) |
+| `POST` | `/api/cards/sync/yugioh` | 🔒 Sincronizzazione TCG Yu-Gi-Oh! (Es: `?limit=1&q=golem`) |
+| `POST` | `/api/cards/sync/one-piece` | 🔒 Sincronizzazione TCG One Piece (Es: `?limit=1&q=luffy`) |
 
 <br>
 
-### 🔍 Filtri Categoria
+### 🎲 Sincronizzazione API Esterne (Giochi da Tavolo)
+_I dati vengono recuperati tramite l'XML API di [BoardGameGeek](https://boardgamegeek.com/). Rotta riservata allo staff (ADMIN/SUPERADMIN)._
 
-_I filtri testuali applicano automaticamente il `.trim()` e la ricerca parziale case-insensitive (`contains`)._
-
-| Metodo | Endpoint | Parametri Query | Filtro Applicato |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/products/category` | `?id=2` | Cerca prodotti per **Solo ID Categoria** |
-| `GET` | `/api/products/category` | `?name=Manga` | Cerca prodotti per **Solo Nome Categoria** (Parziale) |
-| `GET` | `/api/products/category` | `?id=2&name=Manga` | Cerca prodotti per **ID + Nome Categoria** |
-
-<br>
-
-### 🏷️ Filtri Sottocategoria
-
-_I filtri testuali applicano automaticamente il `.trim()` e la ricerca parziale case-insensitive (`contains`)._
-
-| Metodo | Endpoint | Parametri Query | Filtro Applicato |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/products/sub-category` | `?id=4` | Cerca prodotti per **Solo ID Sottocategoria** |
-| `GET` | `/api/products/sub-category` | `?name=Pokemon` | Cerca prodotti per **Solo Nome Sottocategoria** (Parziale) |
-| `GET` | `/api/products/sub-category` | `?id=4&name=Pokemon` | Cerca prodotti per **ID + Nome Sottocategoria** |
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `POST` | `/api/boardgame/sync` | 🔒 Ricerca e sincronizzazione gioco da tavolo (body: `{ "q": "catan" }`) |
 
 ---
