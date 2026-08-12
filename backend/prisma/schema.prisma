@@ -180,12 +180,30 @@ model BoardGame {
 // tavolo, hanno attributi propri (pezzi, minifig, tema) e vanno interrogati
 // come catalogo a parte per la futura single page prodotto.
 model LegoSet {
-  id           Int     @id @default(autoincrement())
-  productId    Int     @unique
-  product      Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id           Int           @id @default(autoincrement())
+  productId    Int           @unique
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   theme        String?
+  themeParent  String?       // tema padre, es. "Star Wars" per il tema figlio "Ultimate Collector Series"
   pieceCount   Int?
   minifigCount Int?
   yearReleased Int?
+
+  minifigs     LegoMinifig[]
+}
+
+// Dettaglio delle minifigure incluse nel set (nome, immagine, quantità) —
+// Rebrickable le espone singolarmente, non solo come conteggio aggregato.
+model LegoMinifig {
+  id         Int     @id @default(autoincrement())
+  legoSetId  Int
+  legoSet    LegoSet @relation(fields: [legoSetId], references: [id], onDelete: Cascade)
+
+  externalId String  // codice Rebrickable della minifig, es. "fig-002544"
+  name       String
+  quantity   Int
+  imageUrl   String?
+
+  @@index([legoSetId])
 }
