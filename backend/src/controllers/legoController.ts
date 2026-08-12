@@ -162,7 +162,12 @@ export const syncLegoSet = async (req: Request, res: Response) => {
         });
       }
 
-      return product;
+      // Il chiamante non deve fare una query separata per vedere tema/pezzi/
+      // minifigure: le restituiamo annidate nella stessa risposta di sync.
+      return tx.product.findUniqueOrThrow({
+        where: { id: product.id },
+        include: { legoSet: { include: { minifigs: true } } },
+      });
     });
 
     res.status(200).json({ message: "Successo! Dati sincronizzati.", data: product });
