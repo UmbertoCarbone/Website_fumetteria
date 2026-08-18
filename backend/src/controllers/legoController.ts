@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/connection.js";
 import { resolveCategory } from "../service/catalogSync.js";
-import { sendError } from "../utils/httpErrors.js";
+import { sendError, handleControllerError } from "../utils/httpErrors.js";
 import { legoSyncBodySchema } from "../validators/syncValidator.js";
 
 const REBRICKABLE_BASE = "https://rebrickable.com/api/v3/lego";
@@ -46,6 +46,16 @@ export const syncLegoSet = async (req: Request, res: Response) => {
   // Rebrickable usa una API key semplice, non OAuth/Bearer
   const headers = { Authorization: `key ${apiKey}` };
 
+  // Fase 1: chiamate a Rebrickable. Isolata dalla fase DB così un errore qui
+  // (rete, API down, risposta malformata) resta distinguibile da un errore
+  // Prisma nella transazione sotto — altrimenti entrambi finirebbero
+  // etichettati come "problema di connessione con Rebrickable".
+  let set: RebrickableSet;
+  let themeName: string | null = null;
+  let themeParentName: string | null = null;
+  let minifigs: RebrickableMinifig[] = [];
+  let minifigCount: number | null = null;
+
   try {
     const searchResponse = await fetch(
       `${REBRICKABLE_BASE}/sets/?search=${encodeURIComponent(q)}&page_size=1`,
@@ -59,16 +69,15 @@ export const syncLegoSet = async (req: Request, res: Response) => {
       });
     }
 
-    const set: RebrickableSet | undefined = searchData.results?.[0];
-    if (!set) {
+    const foundSet: RebrickableSet | undefined = searchData.results?.[0];
+    if (!foundSet) {
       return sendError(res, 404, "Set Lego non trovato.");
     }
+    set = foundSet;
 
     // Il nome del tema (e del suo padre) non sono inclusi nell'endpoint
     // /sets, servono chiamate dedicate. Es: "Ultimate Collector Series" ha
     // come padre "Star Wars" — utile per il breadcrumb della single page.
-    let themeName: string | null = null;
-    let themeParentName: string | null = null;
     const themeResponse = await fetch(`${REBRICKABLE_BASE}/themes/${set.theme_id}/`, {
       headers,
     });
@@ -90,8 +99,6 @@ export const syncLegoSet = async (req: Request, res: Response) => {
 
     // Elenco minifigure incluse nel set (nome, immagine, quantità), non solo
     // il conteggio aggregato. page_size=100 copre praticamente ogni set reale.
-    let minifigs: RebrickableMinifig[] = [];
-    let minifigCount: number | null = null;
     const minifigsResponse = await fetch(
       `${REBRICKABLE_BASE}/sets/${set.set_num}/minifigs/?page_size=100`,
       { headers },
@@ -101,10 +108,20 @@ export const syncLegoSet = async (req: Request, res: Response) => {
       minifigs = minifigsData.results || [];
       minifigCount = typeof minifigsData.count === "number" ? minifigsData.count : null;
     }
+  } catch (error) {
+    console.error("[legoController] Errore nella chiamata a Rebrickable:", error);
+    return sendError(res, 502, "Errore di connessione con Rebrickable.", {
+      details: error instanceof Error ? error.message : "Errore sconosciuto",
+    });
+  }
 
-    const externalId = String(set.set_num);
-    const images = set.set_img_url ? [set.set_img_url] : [];
+  const externalId = String(set.set_num);
+  const images = set.set_img_url ? [set.set_img_url] : [];
 
+  // Fase 2: scrittura DB. Eventuali errori (vincoli, record non trovato in
+  // findUniqueOrThrow, ecc.) vanno mappati con handleControllerError, non
+  // riportati come se Rebrickable fosse irraggiungibile.
+  try {
     const product = await prisma.$transaction(async (tx) => {
       const category = await resolveCategory(tx, "lego", "Lego");
 
@@ -172,9 +189,6 @@ export const syncLegoSet = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: "Successo! Dati sincronizzati.", data: product });
   } catch (error) {
-    console.error("[legoController] Errore di sync:", error);
-    sendError(res, 502, "Errore di connessione con Rebrickable.", {
-      details: error instanceof Error ? error.message : "Errore sconosciuto",
-    });
+    handleControllerError(res, error, "Prodotto Lego non trovato");
   }
 };

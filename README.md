@@ -93,4 +93,12 @@ _I dati di catalogo (nome, immagine, tema + tema padre, pezzi, anno, elenco mini
 | :--- | :--- | :--- |
 | `POST` | `/api/lego/sync` | 🔒 Ricerca e sincronizzazione set Lego (body: `{ "q": "millennium falcon" }`) |
 
+<br>
+
+### 🩺 Utility
+
+| Metodo | Endpoint | Descrizione |
+| :--- | :--- | :--- |
+| `GET` | `/` | Health-check: verifica che il server e la connessione al DB siano attivi |
+
 ---

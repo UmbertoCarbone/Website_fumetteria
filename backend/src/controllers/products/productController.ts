@@ -15,6 +15,7 @@ const productInclude = {
   funkoPop: true,
   manga: true,
   boardGame: true,
+  legoSet: { include: { minifigs: true } },
 };
 
 // ------------------------------------------------------------

@@ -76,12 +76,12 @@ model FranchiseAlias {
 
 enum ExternalSource {
   TCG_PRICE_LOOKUP
-  JIKAN          // se in futuro passi a MyAnimeList/Jikan invece di AniList
-  ANILIST        // non più usata da mangaController (sostituita da MANGADEX), lasciata per lo storico
-  MANGADEX       // fonte manga per-volume: numero volumi reale + copertina per singolo volume
-  BGG            // BoardGameGeek
-  FUNKO_DATASET  // dataset open-source GitHub (kennymkchan/funko-pop-data)
-  REBRICKABLE    // catalogo set Lego (rebrickable.com)
+  JIKAN // se in futuro passi a MyAnimeList/Jikan invece di AniList
+  ANILIST // non più usata da mangaController (sostituita da MANGADEX), lasciata per lo storico
+  MANGADEX // fonte manga per-volume: numero volumi reale + copertina per singolo volume
+  BGG // BoardGameGeek
+  FUNKO_DATASET // dataset open-source GitHub (kennymkchan/funko-pop-data)
+  REBRICKABLE // catalogo set Lego (rebrickable.com)
   MANUAL
 }
 
@@ -90,35 +90,35 @@ enum ExternalSource {
 // ------------------------------------------------------------
 
 model Product {
-  id             Int             @id @default(autoincrement())
-  sku            String          @unique
-  name           String
-  description    String?
-  images         String[]
-  price          Decimal         @db.Decimal(10, 2)
-  stock          Int             @default(0)
-  isAvailable    Boolean         @default(true) // ricalcolato a mano ad ogni write in base a stock
+  id          Int      @id @default(autoincrement())
+  sku         String   @unique
+  name        String
+  description String?
+  images      String[]
+  price       Decimal  @db.Decimal(10, 2)
+  stock       Int      @default(0)
+  isAvailable Boolean  @default(true) // ricalcolato a mano ad ogni write in base a stock
 
-  categoryId     Int
-  category       Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
 
-  franchiseId    Int?            // opzionale: prodotti generici senza brand
-  franchise      Franchise?      @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
+  franchiseId Int? // opzionale: prodotti generici senza brand
+  franchise   Franchise? @relation(fields: [franchiseId], references: [id], onDelete: Restrict)
 
   externalId     String?
   externalSource ExternalSource?
 
-  card           Card?
-  funkoPop       FunkoPop?
-  manga          Manga?
-  boardGame      BoardGame?
-  legoSet        LegoSet?
+  card      Card?
+  funkoPop  FunkoPop?
+  manga     Manga?
+  boardGame BoardGame?
+  legoSet   LegoSet?
 
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([externalId, externalSource]) // sync idempotente: ri-fetch senza duplicati
-  @@index([categoryId, franchiseId])     // query più frequente: "carte di One Piece"
+  @@index([categoryId, franchiseId]) // query più frequente: "carte di One Piece"
 }
 
 // ------------------------------------------------------------
@@ -131,18 +131,18 @@ model Card {
   productId Int     @unique
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  number    String
-  rarity    String
-  set       String
-  variant   String
+  number  String
+  rarity  String
+  set     String
+  variant String
 
   @@index([set])
 }
 
 model FunkoPop {
-  id               Int     @id @default(autoincrement())
-  productId        Int     @unique
-  product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  productId Int     @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   boxNumber        Int?
   isChase          Boolean @default(false)
@@ -150,22 +150,22 @@ model FunkoPop {
 }
 
 model Manga {
-  id           Int      @id @default(autoincrement())
-  productId    Int      @unique
-  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  productId Int     @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  volume       Int?
-  authors      String[]
-  chapters     Int?
-  synopsis     String?
-  score        Float?
-  status       String?
+  volume   Int?
+  authors  String[]
+  chapters Int?
+  synopsis String?
+  score    Float?
+  status   String?
 }
 
 model BoardGame {
-  id            Int     @id @default(autoincrement())
-  productId     Int     @unique
-  product       Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  productId Int     @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   minPlayers    Int?
   maxPlayers    Int?
@@ -180,27 +180,27 @@ model BoardGame {
 // tavolo, hanno attributi propri (pezzi, minifig, tema) e vanno interrogati
 // come catalogo a parte per la futura single page prodotto.
 model LegoSet {
-  id           Int           @id @default(autoincrement())
-  productId    Int           @unique
-  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  productId Int     @unique
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   theme        String?
-  themeParent  String?       // tema padre, es. "Star Wars" per il tema figlio "Ultimate Collector Series"
+  themeParent  String? // tema padre, es. "Star Wars" per il tema figlio "Ultimate Collector Series"
   pieceCount   Int?
   minifigCount Int?
   yearReleased Int?
 
-  minifigs     LegoMinifig[]
+  minifigs LegoMinifig[]
 }
 
 // Dettaglio delle minifigure incluse nel set (nome, immagine, quantità) —
 // Rebrickable le espone singolarmente, non solo come conteggio aggregato.
 model LegoMinifig {
-  id         Int     @id @default(autoincrement())
-  legoSetId  Int
-  legoSet    LegoSet @relation(fields: [legoSetId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  legoSetId Int
+  legoSet   LegoSet @relation(fields: [legoSetId], references: [id], onDelete: Cascade)
 
-  externalId String  // codice Rebrickable della minifig, es. "fig-002544"
+  externalId String // codice Rebrickable della minifig, es. "fig-002544"
   name       String
   quantity   Int
   imageUrl   String?
